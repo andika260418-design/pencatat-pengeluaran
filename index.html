@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="id" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Pencatat Pengeluaran</title>
+  <meta name="description" content="Pencatat pengeluaran pribadi yang sederhana, cepat, dan bisa dipakai offline.">
+  <meta name="theme-color" content="#F4F6F3" id="themeColorMeta">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Catat">
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="icon" href="./icons/favicon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png">
+  <link rel="preload" href="./assets/fonts/plus-jakarta-sans-400.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="./assets/fonts/plus-jakarta-sans-800.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <div class="app" id="app">
+    <main class="main" id="main">
+      <section class="screen is-active" id="screen-beranda" data-screen="beranda" aria-label="Beranda">
+        <div class="screen-pad">
+          <header class="page-header">
+            <button class="month-trigger" id="monthTrigger" type="button">
+              <span id="monthLabel">Bulan ini</span>
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m7 10 5 5 5-5"/></svg>
+            </button>
+            <h1>Ringkasan</h1>
+          </header>
+          <div id="berandaBody" class="stack"></div>
+        </div>
+      </section>
+
+      <section class="screen" id="screen-riwayat" data-screen="riwayat" aria-label="Riwayat">
+        <div class="screen-pad">
+          <header class="page-header">
+            <h1>Riwayat</h1>
+          </header>
+          <div class="search-bar">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.4-3.4"/></svg>
+            <input type="search" id="searchInput" placeholder="Cari transaksi atau catatan" autocomplete="off" aria-label="Cari transaksi atau catatan">
+          </div>
+          <div id="riwayatBody"></div>
+        </div>
+      </section>
+
+      <section class="screen" id="screen-laporan" data-screen="laporan" aria-label="Laporan">
+        <div class="screen-pad">
+          <header class="page-header">
+            <h1>Laporan</h1>
+          </header>
+          <div class="segmented report-tabs" id="reportTabs" role="tablist" aria-label="Periode laporan">
+            <button type="button" class="seg-btn" data-period="week" role="tab">Minggu</button>
+            <button type="button" class="seg-btn is-active" data-period="month" role="tab">Bulan</button>
+            <button type="button" class="seg-btn" data-period="year" role="tab">Tahun</button>
+          </div>
+          <div id="laporanBody" class="stack"></div>
+        </div>
+      </section>
+
+      <section class="screen" id="screen-pengaturan" data-screen="pengaturan" aria-label="Pengaturan">
+        <div class="screen-pad">
+          <header class="page-header">
+            <h1>Pengaturan</h1>
+          </header>
+          <div id="pengaturanBody"></div>
+        </div>
+      </section>
+    </main>
+
+    <nav class="bottom-nav" id="bottomNav" aria-label="Navigasi utama">
+      <div class="nav-grid">
+        <button type="button" class="nav-item is-active" data-tab="beranda">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 10.7 12 4l8 6.7V20a1.5 1.5 0 0 1-1.5 1.5H14V16h-4v5.5H5.5A1.5 1.5 0 0 1 4 20v-9.3Z"/></svg>
+          <span>Beranda</span>
+        </button>
+        <button type="button" class="nav-item" data-tab="riwayat">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9.5 6.5h11M9.5 12h11M9.5 17.5h11"/><circle cx="4.5" cy="6.5" r="1.4" fill="currentColor" stroke="none"/><circle cx="4.5" cy="12" r="1.4" fill="currentColor" stroke="none"/><circle cx="4.5" cy="17.5" r="1.4" fill="currentColor" stroke="none"/></svg>
+          <span>Riwayat</span>
+        </button>
+        <span class="nav-spacer" aria-hidden="true"></span>
+        <button type="button" class="nav-item" data-tab="laporan">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 20v-6.5M12 20V5.5M19 20v-9"/></svg>
+          <span>Laporan</span>
+        </button>
+        <button type="button" class="nav-item" data-tab="pengaturan">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h7.5M17 7h3M4 17h3.5M13 17h7M4 12h2.5M12 12h8"/><circle cx="14.5" cy="7" r="2.2"/><circle cx="9.5" cy="17" r="2.2"/><circle cx="8.5" cy="12" r="2.2"/></svg>
+          <span>Pengaturan</span>
+        </button>
+      </div>
+      <button type="button" class="fab" id="fabAdd" aria-label="Tambah transaksi">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+      </button>
+    </nav>
+  </div>
+
+  <section class="add-screen" id="addScreen" aria-hidden="true" aria-label="Tambah transaksi">
+    <div class="add-inner">
+      <header class="add-header">
+        <button type="button" class="icon-btn ghost" id="addBack" aria-label="Kembali">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 5-7 7 7 7"/></svg>
+        </button>
+        <h2 id="addTitle">Tambah transaksi</h2>
+      </header>
+
+      <div class="segmented type-toggle" id="typeToggle" role="tablist" aria-label="Jenis transaksi">
+        <button type="button" class="seg-btn is-active" data-type="expense" role="tab">Pengeluaran</button>
+        <button type="button" class="seg-btn" data-type="income" role="tab">Pemasukan</button>
+      </div>
+
+      <div class="amount-block">
+        <span class="amount-label">Nominal</span>
+        <div class="amount-display" id="amountDisplay">
+          <span class="amount-rp">Rp</span>
+          <span class="amount-number is-empty" id="amountValue">0</span>
+        </div>
+      </div>
+
+      <div class="field-label">Kategori</div>
+      <div class="category-grid" id="categoryGrid" role="group" aria-label="Pilih kategori"></div>
+
+      <div class="quick-row">
+        <button type="button" class="quick-btn" id="dateBtn">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5.5" width="17" height="15" rx="3"/><path d="M8 3.5v4M16 3.5v4M3.5 10h17"/></svg>
+          <span id="dateBtnLabel">Hari ini</span>
+        </button>
+        <button type="button" class="quick-btn" id="paymentBtn">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8.5h14a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-9a1.5 1.5 0 0 1 1.5-1.5H17"/><path d="M16 14h.01"/></svg>
+          <span id="paymentBtnLabel">Tunai</span>
+        </button>
+      </div>
+
+      <input type="text" class="note-input" id="noteInput" placeholder="Catatan (opsional)" maxlength="60" autocomplete="off" aria-label="Catatan opsional">
+
+      <div class="keypad" id="keypad" aria-label="Keypad nominal">
+        <button type="button" data-key="1">1</button>
+        <button type="button" data-key="2">2</button>
+        <button type="button" data-key="3">3</button>
+        <button type="button" data-key="4">4</button>
+        <button type="button" data-key="5">5</button>
+        <button type="button" data-key="6">6</button>
+        <button type="button" data-key="7">7</button>
+        <button type="button" data-key="8">8</button>
+        <button type="button" data-key="9">9</button>
+        <button type="button" data-key="000">000</button>
+        <button type="button" data-key="0">0</button>
+        <button type="button" data-key="back" class="key-back" aria-label="Hapus angka">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6H9.5L4 12l5.5 6H20a1 1 0 0 0 1-1V7a1 1 0 0 0-1-1Z"/><path d="m12 9.5 5 5M17 9.5l-5 5"/></svg>
+        </button>
+      </div>
+
+      <button type="button" class="btn-primary save-tx" id="saveTx">Simpan pengeluaran</button>
+      <div class="add-safe-space"></div>
+    </div>
+  </section>
+
+  <div class="sheet-wrap" id="sheetWrap" aria-hidden="true">
+    <div class="sheet-backdrop" data-close-sheet></div>
+    <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="sheetTitle">
+      <div class="sheet-grab" aria-hidden="true"></div>
+      <div class="sheet-head">
+        <h3 id="sheetTitle"></h3>
+        <button type="button" class="icon-btn subtle" id="sheetClose" data-close-sheet aria-label="Tutup">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>
+        </button>
+      </div>
+      <div class="sheet-body" id="sheetBody"></div>
+    </div>
+  </div>
+
+  <div class="dialog-wrap" id="dialogWrap" aria-hidden="true">
+    <div class="dialog-backdrop"></div>
+    <div class="dialog" role="alertdialog" aria-modal="true" aria-labelledby="dialogTitle" aria-describedby="dialogMessage">
+      <h3 id="dialogTitle"></h3>
+      <p id="dialogMessage"></p>
+      <div class="dialog-actions">
+        <button type="button" class="btn-soft" id="dialogCancel">Batal</button>
+        <button type="button" class="btn-danger" id="dialogConfirm">Hapus</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite">
+    <span class="toast-icon" aria-hidden="true">
+      <svg viewBox="0 0 24 24"><path d="m5 13 4 4L19 7"/></svg>
+    </span>
+    <span id="toastText"></span>
+  </div>
+
+  <input type="file" id="restoreInput" accept="application/json,.json" hidden>
+
+  <script src="./js/store.js"></script>
+  <script src="./js/charts.js"></script>
+  <script src="./js/app.js"></script>
+</body>
+</html>
