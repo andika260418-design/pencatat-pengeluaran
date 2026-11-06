@@ -2573,3 +2573,361 @@ input::placeholder {
     height: calc(16px + env(safe-area-inset-bottom));
   }
 }
+
+.btn-soft:disabled {
+  opacity: 0.48;
+  box-shadow: none;
+}
+
+.btn-soft:disabled:active {
+  transform: none;
+}
+
+.print-report {
+  display: none;
+  color: #10211b;
+  font-family: var(--font);
+  font-size: 10pt;
+  line-height: 1.45;
+}
+
+.print-report h1,
+.print-report h2,
+.print-report p {
+  margin: 0;
+}
+
+.print-report .print-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 24px;
+  padding-bottom: 12px;
+  border-bottom: 2px solid #0c6e5f;
+}
+
+.print-report .print-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.print-report .print-mark {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  background: #0c6e5f;
+  color: #ffffff;
+  font-size: 17px;
+  font-weight: 800;
+}
+
+.print-report .print-brand strong,
+.print-report .print-brand span {
+  display: block;
+}
+
+.print-report .print-brand strong {
+  font-size: 13pt;
+  font-weight: 800;
+  letter-spacing: -0.3px;
+}
+
+.print-report .print-brand span {
+  color: #6b7a74;
+  font-size: 8pt;
+}
+
+.print-report .print-title {
+  text-align: right;
+}
+
+.print-report .print-title h1 {
+  color: #0c6e5f;
+  font-size: 20pt;
+  font-weight: 800;
+  letter-spacing: -0.8px;
+}
+
+.print-report .print-title p {
+  margin-top: 2px;
+  color: #53655d;
+  font-size: 9.5pt;
+  font-weight: 600;
+}
+
+.print-report .print-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding-top: 7px;
+  color: #6b7a74;
+  font-size: 8pt;
+}
+
+.print-report .print-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 9px;
+  margin-top: 13px;
+}
+
+.print-report .print-card {
+  padding: 10px 12px;
+  border: 1px solid #e1e6e2;
+  border-radius: 10px;
+  background: #f7faf8;
+}
+
+.print-report .print-card span {
+  display: block;
+  color: #6b7a74;
+  font-size: 7.5pt;
+  font-weight: 600;
+}
+
+.print-report .print-card strong {
+  display: block;
+  margin-top: 3px;
+  font-size: 14pt;
+  font-weight: 800;
+  letter-spacing: -0.4px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.print-report .is-income {
+  color: #0c6e5f;
+}
+
+.print-report .is-expense {
+  color: #c2413b;
+}
+
+.print-report .print-compare {
+  margin-top: 8px;
+  padding: 7px 10px;
+  border-radius: 8px;
+  font-size: 8.5pt;
+  font-weight: 600;
+}
+
+.print-report .print-compare.is-good {
+  background: #eaf6f1;
+  color: #0a5f53;
+}
+
+.print-report .print-compare.is-warn {
+  background: #fbeceb;
+  color: #a63832;
+}
+
+.print-report .print-compare.is-flat {
+  background: #f1f4f2;
+  color: #53655d;
+}
+
+.print-report .print-section {
+  margin-top: 17px;
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+.print-report .print-detail {
+  break-inside: auto;
+  page-break-inside: auto;
+}
+
+.print-report .print-section-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+  padding-bottom: 5px;
+  border-bottom: 1px solid #e1e6e2;
+  break-after: avoid;
+  page-break-after: avoid;
+}
+
+.print-report .print-section-head h2 {
+  font-size: 11pt;
+  font-weight: 800;
+  letter-spacing: -0.2px;
+}
+
+.print-report .print-section-head span {
+  color: #6b7a74;
+  font-size: 8.5pt;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.print-report .print-cat-row {
+  display: grid;
+  grid-template-columns: 32mm minmax(25mm, 1fr) 28mm 10mm;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0;
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+.print-report .print-cat-name {
+  color: #34443e;
+  font-size: 8.5pt;
+  font-weight: 700;
+}
+
+.print-report .print-bar {
+  display: block;
+  height: 6px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #e8ede9;
+}
+
+.print-report .print-bar span {
+  display: block;
+  height: 100%;
+  min-width: 2px;
+  border-radius: 999px;
+  background: #0c6e5f;
+}
+
+.print-report .print-cat-amount,
+.print-report .print-cat-percent {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.print-report .print-cat-amount {
+  font-size: 8.5pt;
+  font-weight: 700;
+}
+
+.print-report .print-cat-percent {
+  color: #6b7a74;
+  font-size: 7.5pt;
+  font-weight: 600;
+}
+
+.print-report .print-empty {
+  padding: 7px 0;
+  color: #6b7a74;
+  font-size: 8.5pt;
+}
+
+.print-report .print-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+  font-size: 8pt;
+}
+
+.print-report .print-col-date {
+  width: 13%;
+}
+
+.print-report .print-col-desc {
+  width: 31%;
+}
+
+.print-report .print-col-cat {
+  width: 18%;
+}
+
+.print-report .print-col-method {
+  width: 16%;
+}
+
+.print-report .print-col-amount {
+  width: 22%;
+}
+
+.print-report .print-table th {
+  padding: 6px 6px;
+  border-bottom: 1.5px solid #cbd6d0;
+  background: #f1f5f2;
+  color: #53655d;
+  font-size: 7.2pt;
+  font-weight: 700;
+  letter-spacing: 0.25px;
+  text-align: left;
+  text-transform: uppercase;
+}
+
+.print-report .print-table td {
+  padding: 5px 6px;
+  border-bottom: 1px solid #edf1ee;
+  vertical-align: top;
+  overflow-wrap: anywhere;
+}
+
+.print-report .print-table tbody tr:nth-child(even) {
+  background: #fafcfa;
+}
+
+.print-report .print-table tr {
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+.print-report .print-table thead {
+  display: table-header-group;
+}
+
+.print-report .print-center {
+  text-align: center;
+  white-space: nowrap;
+}
+
+.print-report .print-table .print-amount {
+  text-align: right;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.print-report .print-footer {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 15px;
+  padding-top: 7px;
+  border-top: 1px solid #e1e6e2;
+  color: #6b7a74;
+  font-size: 7.5pt;
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+@page {
+  size: A4 portrait;
+  margin: 14mm 15mm;
+}
+
+@media print {
+  html,
+  body {
+    background: #ffffff !important;
+  }
+
+  body > *:not(.print-report) {
+    display: none !important;
+  }
+
+  .print-report {
+    display: block !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .print-report * {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+}

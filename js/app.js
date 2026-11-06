@@ -49,6 +49,7 @@
     toast: byId("toast"),
     toastText: byId("toastText"),
     restoreInput: byId("restoreInput"),
+    printReport: byId("printReport"),
     themeColorMeta: byId("themeColorMeta")
   };
 
@@ -77,6 +78,7 @@
   };
   var toastTimer = null;
   var dialogAction = null;
+  var printPreviousTitle = null;
 
   var ICONS = {
     food: '<path d="M5 9.5h10.5v4.1a4.4 4.4 0 0 1-4.4 4.4H9.4A4.4 4.4 0 0 1 5 13.6V9.5Z"/><path d="M15.5 10.5h1.4a2.5 2.5 0 0 1 0 5h-1.4"/><path d="M7.6 6.2c.5-.8.5-1.5 0-2.2M10.8 6.2c.5-.8.5-1.5 0-2.2M14 6.2c.5-.8.5-1.5 0-2.2"/>',
@@ -108,6 +110,7 @@
     edit: '<path d="M4 20h4l10.5-10.5a2.1 2.1 0 0 0-3-3L5 17v3Z"/><path d="m14 7 3 3"/>',
     trash: '<path d="M4.5 7h15M9.5 7V5.5A1.5 1.5 0 0 1 11 4h2a1.5 1.5 0 0 1 1.5 1.5V7M6.5 7l.8 12a1.5 1.5 0 0 0 1.5 1.4h6.4a1.5 1.5 0 0 0 1.5-1.4l.8-12M10 11v5.5M14 11v5.5"/>',
     download: '<path d="M12 4v11M7.5 10.5 12 15l4.5-4.5M5 20h14"/>',
+    printer: '<path d="M7 8V4h10v4"/><rect x="4" y="8" width="16" height="8" rx="2"/><path d="M7 13h10v7H7z"/><path d="M17 11h.01"/>',
     upload: '<path d="M12 16V5M7.5 9.5 12 5l4.5 4.5M5 20h14"/>',
     lock: '<rect x="5" y="10" width="14" height="10" rx="2.5"/><path d="M8.5 10V7.5a3.5 3.5 0 0 1 7 0V10"/>',
     bell: '<path d="M18 9.5a6 6 0 0 0-12 0c0 5-2 6-2 6h16s-2-1-2-6ZM10 19h4"/>'
@@ -1432,9 +1435,11 @@
       "</div>" +
       exportControlHTML() +
       '<div class="export-preview" id="exportPreview">' + exportPreviewHTML(period) + "</div>" +
-      '<div class="sheet-actions"><button type="button" class="btn-primary small" id="exportDownload" data-action="export-download"' + (hasTransactions ? "" : " disabled") + ">" +
+      '<div class="sheet-actions"><button type="button" class="btn-primary small export-action" id="exportPdf" data-action="export-pdf"' + (hasTransactions ? "" : " disabled") + ">" +
+      iconSvg("printer") + "Simpan PDF</button>" +
+      '<button type="button" class="btn-soft export-action" id="exportDownload" data-action="export-download"' + (hasTransactions ? "" : " disabled") + ">" +
       iconSvg("download") + "Unduh CSV</button></div>" +
-      '<p class="sheet-note">File CSV berisi ringkasan dan rincian transaksi, bisa dibuka di Excel atau Google Sheets.</p>';
+      '<p class="sheet-note">PDF dibuka lewat dialog cetak—pilih “Simpan sebagai PDF”. CSV bisa dibuka di Excel atau Google Sheets.</p>';
   }
 
   function openExportSheet() {
@@ -1449,9 +1454,11 @@
   function refreshExportPreview() {
     var period = exportPeriod();
     var preview = byId("exportPreview");
-    var button = byId("exportDownload");
+    var disabled = !period || exportTransactions(period).length === 0;
     if (preview) preview.innerHTML = exportPreviewHTML(period);
-    if (button) button.disabled = !period || exportTransactions(period).length === 0;
+    els.sheetBody.querySelectorAll(".export-action").forEach(function (button) {
+      button.disabled = disabled;
+    });
   }
 
   function setExportType(type) {
@@ -1512,6 +1519,121 @@
     }).sort(function (a, b) {
       return b.amount - a.amount;
     });
+  }
+
+  function previousExportPeriod(period) {
+    if (period.type === "day") {
+      var previousDate = addDays(parseISO(period.start), -1);
+      return { start: isoDate(previousDate), end: isoDate(previousDate), label: "hari sebelumnya" };
+    }
+    if (period.type === "year") {
+      var previousYear = Number(period.file) - 1;
+      return { start: previousYear + "-01-01", end: previousYear + "-12-31", label: "tahun lalu" };
+    }
+    var previousMonth = previousMonthKey(period.file);
+    return { start: previousMonth + "-01", end: isoDate(endOfMonth(previousMonth)), label: "bulan lalu" };
+  }
+
+  function printComparisonHTML(period, expense) {
+    var previous = previousExportPeriod(period);
+    var previousExpense = sumAmount(exportTransactions(previous), "expense");
+    if (previousExpense <= 0) {
+      return '<div class="print-compare is-flat">' + (expense > 0 ? "Belum ada data pembanding." : "Tidak ada pengeluaran pada periode ini dan pembandingnya.") + "</div>";
+    }
+    var difference = expense - previousExpense;
+    if (difference === 0) {
+      return '<div class="print-compare is-flat">Pengeluaran sama dengan ' + previous.label + ".</div>";
+    }
+    var percent = Math.round((Math.abs(difference) / previousExpense) * 100);
+    if (difference < 0) {
+      return '<div class="print-compare is-good">Pengeluaran turun ' + percent + "% dibanding " + previous.label + ".</div>";
+    }
+    return '<div class="print-compare is-warn">Pengeluaran naik ' + percent + "% dibanding " + previous.label + ".</div>";
+  }
+
+  function printCategoryHTML(transactions) {
+    var rows = exportCategoryRows(transactions, "expense");
+    if (!rows.length) {
+      return '<p class="print-empty">Belum ada pengeluaran pada periode ini.</p>';
+    }
+    return rows.map(function (item) {
+      return '<div class="print-cat-row">' +
+        '<span class="print-cat-name">' + escapeHtml(item.name) + "</span>" +
+        '<span class="print-bar"><span style="width:' + Math.max(0, Math.min(100, item.percent)) + '%"></span></span>' +
+        '<span class="print-cat-amount">' + formatRp(item.amount) + "</span>" +
+        '<span class="print-cat-percent">' + item.percent + "%</span>" +
+        "</div>";
+    }).join("");
+  }
+
+  function printReportHTML(period, transactions) {
+    var income = sumAmount(transactions, "income");
+    var expense = sumAmount(transactions, "expense");
+    var balance = income - expense;
+    var printedAt = fullDate(isoDate(new Date())) + ", " + nowTime();
+    var rows = transactions.slice().sort(function (a, b) {
+      return (a.date + a.time).localeCompare(b.date + b.time);
+    }).map(function (tx) {
+      var category = categoryById(tx.categoryId);
+      var isIncome = tx.type === "income";
+      return '<tr><td class="print-center">' + escapeHtml(formatDateShort(tx.date)) + "</td>" +
+        "<td>" + escapeHtml(tx.note || category.name) + "</td>" +
+        "<td>" + escapeHtml(category.name) + "</td>" +
+        "<td>" + escapeHtml(tx.payment || "\u2014") + "</td>" +
+        '<td class="print-amount ' + (isIncome ? "is-income" : "is-expense") + '">' +
+        (isIncome ? "+" : "\u2212") + formatRp(tx.amount) + "</td></tr>";
+    }).join("");
+
+    return '<header class="print-head">' +
+      '<div class="print-brand"><span class="print-mark">C</span><div><strong>Catat</strong><span>Catatan keuangan pribadi</span></div></div>' +
+      '<div class="print-title"><h1>Rekap Keuangan</h1><p>' + escapeHtml(period.label) + "</p></div>" +
+      "</header>" +
+      '<div class="print-meta"><span>Rekap ' + period.lower + "</span><span>Dibuat " + escapeHtml(printedAt) + "</span></div>" +
+      '<section class="print-summary">' +
+      '<div class="print-card"><span>Pemasukan</span><strong class="is-income">' + formatRp(income) + "</strong></div>" +
+      '<div class="print-card"><span>Pengeluaran</span><strong class="is-expense">' + formatRp(expense) + "</strong></div>" +
+      '<div class="print-card"><span>Saldo</span><strong class="' + (balance < 0 ? "is-expense" : "is-income") + '">' + (balance < 0 ? "\u2212" : "") + formatRp(Math.abs(balance)) + "</strong></div>" +
+      "</section>" +
+      printComparisonHTML(period, expense) +
+      '<section class="print-section">' +
+      '<div class="print-section-head"><h2>Pengeluaran per kategori</h2><span>' + formatRp(expense) + "</span></div>" +
+      printCategoryHTML(transactions) +
+      "</section>" +
+      '<section class="print-section print-detail">' +
+      '<div class="print-section-head"><h2>Rincian transaksi</h2><span>' + transactions.length + " transaksi</span></div>" +
+      '<table class="print-table">' +
+      '<colgroup><col class="print-col-date"><col class="print-col-desc"><col class="print-col-cat"><col class="print-col-method"><col class="print-col-amount"></colgroup>' +
+      '<thead><tr><th>Tanggal</th><th>Keterangan</th><th>Kategori</th><th>Metode</th><th class="print-amount">Jumlah</th></tr></thead>' +
+      "<tbody>" + rows + "</tbody></table>" +
+      "</section>" +
+      '<footer class="print-footer"><span>Catat · Rekap dibuat otomatis dari data aplikasi</span><span>Dicetak ' + escapeHtml(printedAt) + "</span></footer>";
+  }
+
+  function clearPrintReport() {
+    if (printPreviousTitle !== null) {
+      document.title = printPreviousTitle;
+      printPreviousTitle = null;
+    }
+    els.printReport.innerHTML = "";
+    els.printReport.setAttribute("aria-hidden", "true");
+  }
+
+  function printPdfExport() {
+    var period = exportPeriod();
+    if (!period) {
+      toast("Pilih periode rekap terlebih dahulu.");
+      return;
+    }
+    var transactions = exportTransactions(period);
+    if (!transactions.length) {
+      toast("Tidak ada transaksi pada periode ini.");
+      return;
+    }
+    if (printPreviousTitle === null) printPreviousTitle = document.title;
+    document.title = "Rekap Keuangan - " + period.label;
+    els.printReport.innerHTML = printReportHTML(period, transactions);
+    els.printReport.setAttribute("aria-hidden", "false");
+    window.print();
   }
 
   function downloadCsvExport() {
@@ -1640,6 +1762,9 @@
         break;
       case "export-type":
         setExportType(trigger.getAttribute("data-export-type"));
+        break;
+      case "export-pdf":
+        printPdfExport();
         break;
       case "export-download":
         downloadCsvExport();
@@ -1838,6 +1963,8 @@
       var row = event.target.closest("[data-tx]");
       if (row) openTransactionSheet(row.getAttribute("data-tx"));
     });
+
+    window.addEventListener("afterprint", clearPrintReport);
 
     window.addEventListener("hashchange", function () {
       var tab = (window.location.hash || "").replace(/^#\/?/, "");

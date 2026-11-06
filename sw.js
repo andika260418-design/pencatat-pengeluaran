@@ -1,6 +1,6 @@
 "use strict";
 
-var CACHE_NAME = "catat-v2";
+var CACHE_NAME = "catat-v3";
 var ASSETS = [
   "./",
   "./index.html",
