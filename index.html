@@ -48,8 +48,12 @@
 
       <section class="screen" id="screen-laporan" data-screen="laporan" aria-label="Laporan">
         <div class="screen-pad">
-          <header class="page-header">
+          <header class="page-header page-header-row">
             <h1>Laporan</h1>
+            <button type="button" class="export-trigger" data-action="open-export" aria-label="Unduh rekap keuangan">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11M7.5 10.5 12 15l4.5-4.5M5 20h14"/></svg>
+              <span>Rekap</span>
+            </button>
           </header>
           <div class="segmented report-tabs" id="reportTabs" role="tablist" aria-label="Periode laporan">
             <button type="button" class="seg-btn" data-period="week" role="tab">Minggu</button>

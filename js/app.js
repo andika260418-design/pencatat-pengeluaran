@@ -69,7 +69,11 @@
     note: "",
     detailId: null,
     categoryEditId: null,
-    categoryDraft: null
+    categoryDraft: null,
+    exportType: "month",
+    exportDate: isoDate(new Date()),
+    exportMonth: currentMonthKey(),
+    exportYear: String(new Date().getFullYear())
   };
   var toastTimer = null;
   var dialogAction = null;
@@ -1325,6 +1329,265 @@
     reader.readAsText(file);
   }
 
+  function exportYears() {
+    var years = {};
+    years[String(new Date().getFullYear())] = true;
+    state.transactions.forEach(function (tx) {
+      var year = String(tx.date || "").slice(0, 4);
+      if (/^\d{4}$/.test(year)) years[year] = true;
+    });
+    if (/^\d{4}$/.test(ui.exportYear)) years[ui.exportYear] = true;
+    return Object.keys(years).sort().reverse();
+  }
+
+  function exportPeriod() {
+    if (ui.exportType === "day") {
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(ui.exportDate)) return null;
+      return {
+        type: "day",
+        lower: "harian",
+        label: fullDate(ui.exportDate),
+        file: ui.exportDate,
+        start: ui.exportDate,
+        end: ui.exportDate
+      };
+    }
+    if (ui.exportType === "year") {
+      if (!/^\d{4}$/.test(ui.exportYear)) return null;
+      return {
+        type: "year",
+        lower: "tahunan",
+        label: "Tahun " + ui.exportYear,
+        file: ui.exportYear,
+        start: ui.exportYear + "-01-01",
+        end: ui.exportYear + "-12-31"
+      };
+    }
+    if (!/^\d{4}-\d{2}$/.test(ui.exportMonth)) return null;
+    return {
+      type: "month",
+      lower: "bulanan",
+      label: monthName(ui.exportMonth),
+      file: ui.exportMonth,
+      start: ui.exportMonth + "-01",
+      end: isoDate(endOfMonth(ui.exportMonth))
+    };
+  }
+
+  function exportTransactions(period) {
+    if (!period) return [];
+    return state.transactions.filter(function (tx) {
+      return tx.date >= period.start && tx.date <= period.end;
+    });
+  }
+
+  function exportTypeButton(type, label) {
+    var active = ui.exportType === type;
+    return '<button type="button" class="seg-btn' + (active ? " is-active" : "") + '" data-action="export-type" data-export-type="' + type + '" aria-pressed="' + (active ? "true" : "false") + '">' + label + "</button>";
+  }
+
+  function exportControlHTML() {
+    if (ui.exportType === "day") {
+      return '<div class="field-group export-field"><label for="exportDate">Tanggal</label>' +
+        '<input class="field-input" type="date" id="exportDate" value="' + escapeHtml(ui.exportDate) + '" max="' + isoDate(new Date()) + '"></div>';
+    }
+    if (ui.exportType === "year") {
+      return '<div class="field-group export-field"><label for="exportYear">Tahun</label>' +
+        '<select class="field-input" id="exportYear">' + exportYears().map(function (year) {
+          return '<option value="' + year + '"' + (year === ui.exportYear ? " selected" : "") + ">" + year + "</option>";
+        }).join("") + "</select></div>";
+    }
+    return '<div class="field-group export-field"><label for="exportMonth">Bulan</label>' +
+      '<input class="field-input" type="month" id="exportMonth" value="' + escapeHtml(ui.exportMonth) + '" max="' + currentMonthKey() + '"></div>';
+  }
+
+  function exportPreviewHTML(period) {
+    if (!period) {
+      return '<div class="export-preview-head"><div><div class="export-preview-kicker">Ringkasan</div><div class="export-preview-period">Pilih periode</div></div></div>' +
+        '<div class="export-empty">Lengkapi tanggal, bulan, atau tahun rekap.</div>';
+    }
+    var transactions = exportTransactions(period);
+    var header = '<div class="export-preview-head"><div><div class="export-preview-kicker">Ringkasan</div><div class="export-preview-period">' + escapeHtml(period.label) + "</div></div>";
+    if (!transactions.length) {
+      return header + "</div>" + '<div class="export-empty">Tidak ada transaksi pada periode ini.</div>';
+    }
+    var income = sumAmount(transactions, "income");
+    var expense = sumAmount(transactions, "expense");
+    var balance = income - expense;
+    return header + '<span class="export-preview-count">' + transactions.length + " transaksi</span></div>" +
+      '<div class="export-stats">' +
+      '<div class="export-stat is-income"><span>Pemasukan</span><strong>' + formatRp(income) + "</strong></div>" +
+      '<div class="export-stat"><span>Pengeluaran</span><strong>' + formatRp(expense) + "</strong></div>" +
+      '<div class="export-stat"><span>Saldo</span><strong>' + (balance < 0 ? "\u2212" : "") + formatRp(Math.abs(balance)) + "</strong></div>" +
+      "</div>";
+  }
+
+  function exportSheetHTML() {
+    var period = exportPeriod();
+    var hasTransactions = exportTransactions(period).length > 0;
+    return '<div class="segmented export-tabs" role="group" aria-label="Jenis rekap">' +
+      exportTypeButton("day", "Harian") +
+      exportTypeButton("month", "Bulanan") +
+      exportTypeButton("year", "Tahunan") +
+      "</div>" +
+      exportControlHTML() +
+      '<div class="export-preview" id="exportPreview">' + exportPreviewHTML(period) + "</div>" +
+      '<div class="sheet-actions"><button type="button" class="btn-primary small" id="exportDownload" data-action="export-download"' + (hasTransactions ? "" : " disabled") + ">" +
+      iconSvg("download") + "Unduh CSV</button></div>" +
+      '<p class="sheet-note">File CSV berisi ringkasan dan rincian transaksi, bisa dibuka di Excel atau Google Sheets.</p>';
+  }
+
+  function openExportSheet() {
+    openSheet("Unduh rekap", exportSheetHTML());
+  }
+
+  function refreshExportSheet() {
+    if (!els.sheetWrap.classList.contains("is-open")) return;
+    els.sheetBody.innerHTML = exportSheetHTML();
+  }
+
+  function refreshExportPreview() {
+    var period = exportPeriod();
+    var preview = byId("exportPreview");
+    var button = byId("exportDownload");
+    if (preview) preview.innerHTML = exportPreviewHTML(period);
+    if (button) button.disabled = !period || exportTransactions(period).length === 0;
+  }
+
+  function setExportType(type) {
+    if (["day", "month", "year"].indexOf(type) < 0) return;
+    ui.exportType = type;
+    if (type === "day" && !/^\d{4}-\d{2}-\d{2}$/.test(ui.exportDate)) {
+      ui.exportDate = isoDate(new Date());
+    }
+    if (type === "month" && !/^\d{4}-\d{2}$/.test(ui.exportMonth)) {
+      ui.exportMonth = currentMonthKey();
+    }
+    if (type === "year") {
+      var years = exportYears();
+      if (years.indexOf(ui.exportYear) < 0) ui.exportYear = years[0];
+    }
+    refreshExportSheet();
+  }
+
+  function handleExportInput(event) {
+    if (event.target.id === "exportDate") {
+      ui.exportDate = event.target.value;
+    } else if (event.target.id === "exportMonth") {
+      ui.exportMonth = event.target.value;
+    } else if (event.target.id === "exportYear") {
+      ui.exportYear = event.target.value;
+    } else {
+      return;
+    }
+    refreshExportPreview();
+  }
+
+  function csvCell(value) {
+    var text = String(value == null ? "" : value);
+    if (typeof value === "string" && /^[=+\-@]/.test(text)) {
+      text = "'" + text;
+    }
+    return /[";\r\n]/.test(text) ? '"' + text.replace(/"/g, '""') + '"' : text;
+  }
+
+  function csvRow(values) {
+    return values.map(csvCell).join(";");
+  }
+
+  function exportCategoryRows(transactions, type) {
+    var map = {};
+    transactions.forEach(function (tx) {
+      if (tx.type !== type) return;
+      if (!map[tx.categoryId]) {
+        map[tx.categoryId] = { name: categoryById(tx.categoryId).name, amount: 0 };
+      }
+      map[tx.categoryId].amount += tx.amount;
+    });
+    var total = sumAmount(transactions, type);
+    return Object.keys(map).map(function (id) {
+      var item = map[id];
+      item.percent = total > 0 ? Math.round((item.amount / total) * 100) : 0;
+      return item;
+    }).sort(function (a, b) {
+      return b.amount - a.amount;
+    });
+  }
+
+  function downloadCsvExport() {
+    var period = exportPeriod();
+    if (!period) {
+      toast("Pilih periode rekap terlebih dahulu.");
+      return;
+    }
+    var transactions = exportTransactions(period);
+    if (!transactions.length) {
+      toast("Tidak ada transaksi pada periode ini.");
+      return;
+    }
+    var income = sumAmount(transactions, "income");
+    var expense = sumAmount(transactions, "expense");
+    var rows = [
+      ["Rekap Keuangan Catat"],
+      ["Periode", period.label],
+      ["Dibuat", fullDate(isoDate(new Date())) + " " + nowTime()],
+      [],
+      ["Ringkasan"],
+      ["Total pemasukan (Rp)", income],
+      ["Total pengeluaran (Rp)", expense],
+      ["Saldo (Rp)", income - expense],
+      ["Jumlah transaksi", transactions.length],
+      [],
+      ["Pengeluaran per kategori"],
+      ["Kategori", "Jumlah (Rp)", "Porsi"]
+    ];
+    var expenseRows = exportCategoryRows(transactions, "expense");
+    if (expenseRows.length) {
+      expenseRows.forEach(function (item) {
+        rows.push([item.name, item.amount, item.percent + "%"]);
+      });
+    } else {
+      rows.push(["Tidak ada pengeluaran"]);
+    }
+    rows.push([], ["Pemasukan per kategori"], ["Kategori", "Jumlah (Rp)", "Porsi"]);
+    var incomeRows = exportCategoryRows(transactions, "income");
+    if (incomeRows.length) {
+      incomeRows.forEach(function (item) {
+        rows.push([item.name, item.amount, item.percent + "%"]);
+      });
+    } else {
+      rows.push(["Tidak ada pemasukan"]);
+    }
+    rows.push([], ["Rincian transaksi"], ["Tanggal", "Waktu", "Jenis", "Kategori", "Catatan", "Metode", "Nominal (Rp)"]);
+    transactions.slice().sort(function (a, b) {
+      return (a.date + a.time).localeCompare(b.date + b.time);
+    }).forEach(function (tx) {
+      rows.push([
+        tx.date,
+        tx.time,
+        tx.type === "income" ? "Pemasukan" : "Pengeluaran",
+        categoryById(tx.categoryId).name,
+        tx.note || "",
+        tx.payment || "",
+        tx.amount
+      ]);
+    });
+    var csv = "\uFEFF" + rows.map(csvRow).join("\r\n") + "\r\n";
+    var blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+    var url = URL.createObjectURL(blob);
+    var link = document.createElement("a");
+    link.href = url;
+    link.download = "catat-rekap-" + period.lower + "-" + period.file + ".csv";
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.setTimeout(function () {
+      URL.revokeObjectURL(url);
+    }, 1000);
+    closeSheet();
+    toast("Rekap " + period.lower + " diunduh.");
+  }
+
   function toggleWarning() {
     Store.saveSettings({ warningEnabled: !state.settings.warningEnabled });
     renderPengaturan();
@@ -1371,6 +1634,15 @@
         break;
       case "open-history":
         goTab("riwayat");
+        break;
+      case "open-export":
+        openExportSheet();
+        break;
+      case "export-type":
+        setExportType(trigger.getAttribute("data-export-type"));
+        break;
+      case "export-download":
+        downloadCsvExport();
         break;
       case "month-quick":
         applyMonth(trigger.getAttribute("data-month"));
@@ -1552,6 +1824,8 @@
     });
 
     els.restoreInput.addEventListener("change", handleRestoreFile);
+    els.sheetBody.addEventListener("input", handleExportInput);
+    els.sheetBody.addEventListener("change", handleExportInput);
     document.addEventListener("input", handleAppInput);
     document.addEventListener("keydown", handleKeydown);
 
