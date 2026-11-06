@@ -78,6 +78,7 @@
     if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return null;
     var time = String(tx.time || "12:00");
     if (!/^\d{2}:\d{2}$/.test(time)) time = "12:00";
+    var id = String(tx.id || uid());
     var known = categories.some(function (category) {
       return category.id === tx.categoryId;
     });
@@ -88,14 +89,15 @@
       tx.categoryId = type === "income" ? "income-other" : categories[0] ? categories[0].id : "lainnya";
     }
     return {
-      id: String(tx.id || uid()),
+      id: id,
       type: type,
       amount: Math.round(amount),
       categoryId: String(tx.categoryId),
       date: date,
       time: time,
       payment: String(tx.payment || "Tunai"),
-      note: String(tx.note || "").slice(0, 80)
+      note: String(tx.note || "").slice(0, 80),
+      isSample: tx.isSample === true || /^seed-/.test(id)
     };
   }
 
@@ -138,6 +140,7 @@
   function persist() {
     try {
       window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      window.dispatchEvent(new CustomEvent("catat:state-changed"));
       return true;
     } catch (error) {
       return false;
@@ -171,7 +174,8 @@
         date: isoDate(date),
         time: time,
         payment: payment || "Tunai",
-        note: note
+        note: note,
+        isSample: true
       });
     }
 
@@ -325,6 +329,58 @@
     return state;
   }
 
+  function hasCustomCategories() {
+    if (state.categories.length !== EXPENSE_CATEGORIES.length) return true;
+    return EXPENSE_CATEGORIES.some(function (defaultCategory) {
+      var found = state.categories.find(function (category) {
+        return category.id === defaultCategory.id;
+      });
+      return !found ||
+        found.name !== defaultCategory.name ||
+        found.color !== defaultCategory.color ||
+        found.icon !== defaultCategory.icon;
+    });
+  }
+
+  function hasRealData() {
+    if (!state) return false;
+    if (state.transactions.some(function (tx) { return !tx.isSample; })) return true;
+    if (hasCustomCategories()) return true;
+    if (state.settings.monthlyBudget !== DEFAULT_SETTINGS.monthlyBudget) return true;
+    if (state.settings.warningEnabled !== DEFAULT_SETTINGS.warningEnabled) return true;
+    return Object.keys(state.settings.categoryBudgets).length > 0;
+  }
+
+  function sampleCount() {
+    if (!state) return 0;
+    return state.transactions.filter(function (tx) { return tx.isSample; }).length;
+  }
+
+  function withoutSampleData() {
+    state = normalize({
+      version: VERSION,
+      categories: clone(state.categories),
+      transactions: state.transactions.filter(function (tx) { return !tx.isSample; }),
+      settings: clone(state.settings)
+    });
+    save();
+    return state;
+  }
+
+  function resetToEmpty() {
+    var darkMode = state && state.settings ? state.settings.darkMode : false;
+    var settings = clone(DEFAULT_SETTINGS);
+    settings.darkMode = darkMode;
+    state = normalize({
+      version: VERSION,
+      categories: clone(EXPENSE_CATEGORIES),
+      transactions: [],
+      settings: settings
+    });
+    save();
+    return state;
+  }
+
   window.Store = {
     init: init,
     getState: getState,
@@ -334,6 +390,10 @@
     replaceState: replaceState,
     clearTransactions: clearTransactions,
     resetToSeed: resetToSeed,
+    resetToEmpty: resetToEmpty,
+    withoutSampleData: withoutSampleData,
+    hasRealData: hasRealData,
+    sampleCount: sampleCount,
     getCategories: getCategories,
     getCategory: getCategory,
     uid: uid,

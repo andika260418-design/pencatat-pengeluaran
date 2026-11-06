@@ -1,14 +1,21 @@
 "use strict";
 
-var CACHE_NAME = "catat-v3";
+var CACHE_NAME = "catat-v4";
 var ASSETS = [
   "./",
   "./index.html",
   "./styles.css",
   "./manifest.webmanifest",
+  "./js/firebase-config.js",
+  "./js/boot-lock.js",
   "./js/store.js",
   "./js/charts.js",
+  "./js/lock.js",
+  "./js/cloud.js",
   "./js/app.js",
+  "./js/vendor/firebase-app-compat.js",
+  "./js/vendor/firebase-auth-compat.js",
+  "./js/vendor/firebase-firestore-compat.js",
   "./assets/fonts/plus-jakarta-sans-400.woff2",
   "./assets/fonts/plus-jakarta-sans-500.woff2",
   "./assets/fonts/plus-jakarta-sans-600.woff2",

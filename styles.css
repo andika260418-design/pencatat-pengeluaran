@@ -1049,6 +1049,10 @@ input::placeholder {
   opacity: 0.56;
 }
 
+.settings-row.is-info-row {
+  cursor: default;
+}
+
 .badge-later {
   flex: none;
   padding: 6px 12px;
@@ -2908,6 +2912,517 @@ input::placeholder {
 @page {
   size: A4 portrait;
   margin: 14mm 15mm;
+}
+
+html.is-app-locked,
+html.is-app-locked body {
+  overflow: hidden;
+}
+
+html.is-app-locked .app,
+html.is-app-locked .add-screen {
+  visibility: hidden;
+}
+
+.lock-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  display: none;
+  overflow-y: auto;
+  padding: calc(32px + env(safe-area-inset-top)) 24px calc(28px + env(safe-area-inset-bottom));
+  background:
+    radial-gradient(120% 90% at 50% 0%, color-mix(in srgb, var(--primary) 13%, transparent), transparent 70%),
+    var(--bg);
+}
+
+.lock-screen.is-visible {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.lock-inner {
+  width: 100%;
+  max-width: 342px;
+  margin: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.lock-brand {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  margin-bottom: 38px;
+}
+
+.lock-mark {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 15px;
+  background: var(--primary);
+  color: var(--on-primary);
+  font-size: 20px;
+  font-weight: 800;
+  box-shadow: 0 16px 30px -18px color-mix(in srgb, var(--primary) 80%, #000);
+}
+
+.lock-brand div {
+  display: flex;
+  flex-direction: column;
+}
+
+.lock-brand strong {
+  font-size: 16px;
+  font-weight: 800;
+  letter-spacing: -0.2px;
+}
+
+.lock-brand span {
+  color: var(--muted);
+  font-size: 11.5px;
+}
+
+.lock-copy {
+  text-align: center;
+}
+
+.lock-copy h1 {
+  font-size: 27px;
+  font-weight: 800;
+  letter-spacing: -0.8px;
+}
+
+.lock-copy p {
+  margin-top: 7px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.lock-dots {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 13px;
+  min-height: 14px;
+  margin: 30px 0 8px;
+}
+
+.lock-dot {
+  width: 12px;
+  height: 12px;
+  border: 1.5px solid color-mix(in srgb, var(--muted) 58%, var(--line));
+  border-radius: 50%;
+  background: transparent;
+  transition: background 0.16s ease, border-color 0.16s ease, transform 0.16s ease;
+}
+
+.lock-dot.is-filled {
+  border-color: var(--primary);
+  background: var(--primary);
+  transform: scale(1.08);
+}
+
+.lock-error {
+  min-height: 20px;
+  margin-bottom: 4px;
+  color: var(--danger);
+  font-size: 12.5px;
+  font-weight: 600;
+  line-height: 1.4;
+  text-align: center;
+}
+
+.lock-keypad {
+  display: grid;
+  grid-template-columns: repeat(3, 66px);
+  gap: 14px 26px;
+  margin-top: 10px;
+  justify-content: center;
+}
+
+.lock-keypad button {
+  display: grid;
+  place-items: center;
+  width: 66px;
+  height: 66px;
+  border: 1px solid var(--line-soft);
+  border-radius: 50%;
+  background: var(--surface);
+  color: var(--ink);
+  font-size: 24px;
+  font-weight: 600;
+  box-shadow: var(--shadow-card);
+  transition: transform 0.13s ease, background 0.16s ease;
+}
+
+.lock-keypad button:active {
+  transform: scale(0.94);
+  background: var(--soft);
+}
+
+.lock-key-empty {
+  width: 66px;
+  height: 66px;
+}
+
+.lock-key-back {
+  background: transparent !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+}
+
+.lock-key-back svg {
+  width: 24px;
+  height: 24px;
+  fill: none;
+  stroke: var(--ink);
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.lock-forgot {
+  margin-top: 22px;
+  padding: 10px 14px;
+  color: var(--primary);
+  font-size: 13.5px;
+  font-weight: 700;
+}
+
+.lock-screen.is-shaking .lock-keypad {
+  animation: lock-shake 0.38s ease;
+}
+
+@keyframes lock-shake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-8px); }
+  40% { transform: translateX(7px); }
+  60% { transform: translateX(-5px); }
+  80% { transform: translateX(4px); }
+}
+
+.account-summary {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid var(--line-soft);
+  border-radius: 18px;
+  background: var(--surface-2);
+}
+
+.account-avatar {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  flex: none;
+  border-radius: 14px;
+  background: var(--mint);
+  color: var(--primary-strong);
+  font-size: 17px;
+  font-weight: 800;
+}
+
+.account-summary-copy {
+  min-width: 0;
+}
+
+.account-summary-copy strong {
+  display: block;
+  overflow-wrap: anywhere;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.account-summary-copy span {
+  display: block;
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.account-status-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 14px 2px 0;
+  color: var(--muted-strong);
+  font-size: 12.5px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.status-dot {
+  width: 9px;
+  height: 9px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--muted);
+}
+
+.status-dot.is-good {
+  background: var(--primary);
+}
+
+.status-dot.is-warn {
+  background: #b7791f;
+}
+
+.status-dot.is-bad {
+  background: var(--danger);
+}
+
+.status-dot.is-muted {
+  background: var(--muted);
+}
+
+.account-detail {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 10px;
+  padding: 11px 13px;
+  border-radius: 13px;
+  background: var(--soft-2);
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.account-detail strong {
+  color: var(--muted-strong);
+  font-weight: 700;
+  text-align: right;
+}
+
+.notice {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 14px 0;
+  padding: 13px 15px;
+  border-radius: 14px;
+  background: var(--soft);
+  color: var(--muted-strong);
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+
+.notice strong {
+  color: var(--ink);
+  font-size: 13px;
+}
+
+.notice.is-warning {
+  background: var(--warning-bg);
+  color: var(--warning-ink);
+}
+
+.notice.is-warning strong {
+  color: inherit;
+}
+
+.form-message {
+  min-height: 18px;
+  margin: 2px 0 0;
+  color: var(--danger);
+  font-size: 12.5px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.form-message.is-info {
+  color: var(--muted-strong);
+}
+
+.form-message.is-success {
+  color: var(--primary);
+}
+
+.auth-links {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 8px 16px;
+  margin-top: 16px;
+}
+
+.auth-links button {
+  padding: 4px 0;
+  color: var(--primary);
+  font-size: 12.5px;
+  font-weight: 700;
+}
+
+.pin-input {
+  padding-left: 20px;
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: 8px;
+  text-align: center;
+}
+
+.lock-status-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid var(--line-soft);
+  border-radius: 18px;
+  background: var(--surface-2);
+}
+
+.lock-status-icon {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  flex: none;
+  border-radius: 14px;
+  background: var(--mint);
+  color: var(--primary-strong);
+}
+
+.lock-status-icon svg {
+  width: 21px;
+  height: 21px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.lock-status-card strong {
+  display: block;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.lock-status-card span {
+  display: block;
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.lock-auto-tabs {
+  grid-template-columns: repeat(2, 1fr);
+  margin-bottom: 12px;
+}
+
+.sheet-warning {
+  margin: 14px 2px 0;
+  color: var(--muted-strong);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.sheet-note + .field-group,
+.sheet-note + .notice,
+.sheet-note + .auth-links,
+.notice + .sheet-note,
+.sheet-note + .segmented,
+.sheet-note + .lock-status-card {
+  margin-top: 14px;
+}
+
+.cloud-choice {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--surface-2);
+  text-align: left;
+}
+
+.cloud-choice + .cloud-choice {
+  margin-top: 10px;
+}
+
+.cloud-choice.is-recommended {
+  border-color: color-mix(in srgb, var(--primary) 48%, var(--line));
+  background: var(--mint);
+}
+
+.cloud-choice-icon {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  flex: none;
+  border-radius: 13px;
+  background: var(--surface);
+  color: var(--primary);
+}
+
+.cloud-choice-icon svg {
+  width: 20px;
+  height: 20px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.cloud-choice-copy {
+  flex: 1;
+  min-width: 0;
+}
+
+.cloud-choice-title {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 7px;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.cloud-choice-sub {
+  display: block;
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.choice-badge {
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: var(--primary);
+  color: var(--on-primary);
+  font-size: 10px;
+  font-weight: 700;
+}
+
+@media (max-height: 700px) {
+  .lock-inner {
+    max-width: 320px;
+  }
+
+  .lock-brand {
+    margin-bottom: 24px;
+  }
+
+  .lock-dots {
+    margin-top: 22px;
+  }
+
+  .lock-keypad {
+    gap: 10px 22px;
+  }
 }
 
 @media print {

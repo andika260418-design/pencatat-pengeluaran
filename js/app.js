@@ -79,6 +79,7 @@
   var toastTimer = null;
   var dialogAction = null;
   var printPreviousTitle = null;
+  var cloudState = CatatCloud.getStatus();
 
   var ICONS = {
     food: '<path d="M5 9.5h10.5v4.1a4.4 4.4 0 0 1-4.4 4.4H9.4A4.4 4.4 0 0 1 5 13.6V9.5Z"/><path d="M15.5 10.5h1.4a2.5 2.5 0 0 1 0 5h-1.4"/><path d="M7.6 6.2c.5-.8.5-1.5 0-2.2M10.8 6.2c.5-.8.5-1.5 0-2.2M14 6.2c.5-.8.5-1.5 0-2.2"/>',
@@ -714,12 +715,692 @@
     return '<section class="settings-section"><div class="settings-label">' + escapeHtml(label) + '</div><div class="settings-card">' + content + "</div></section>";
   }
 
+  function settingsInfo(title, subtitle, badge) {
+    return '<div class="settings-row is-info-row"><span class="settings-copy"><span class="settings-title">' +
+      escapeHtml(title) + '</span><span class="settings-sub">' + escapeHtml(subtitle) + "</span></span>" +
+      (badge ? '<span class="badge-later">' + escapeHtml(badge) + "</span>" : "") + "</div>";
+  }
+
+  function inputValue(id) {
+    var input = byId(id);
+    return input ? input.value : "";
+  }
+
+  function setFormMessage(id, message, tone) {
+    var element = byId(id);
+    if (!element) return;
+    element.textContent = message || "";
+    element.classList.toggle("is-info", tone === "info");
+    element.classList.toggle("is-success", tone === "success");
+  }
+
+  function setFormBusy(action, busy, label) {
+    var button = els.sheetBody.querySelector('[data-action="' + action + '"]');
+    if (!button) return;
+    if (!button.getAttribute("data-label")) button.setAttribute("data-label", button.textContent);
+    button.disabled = busy;
+    button.textContent = busy ? label : button.getAttribute("data-label");
+  }
+
+  function authErrorMessage(error) {
+    var code = error && error.code ? String(error.code) : "";
+    if (code === "auth/invalid-email" || code === "auth/user-not-found" || code === "auth/wrong-password" || code === "auth/invalid-credential") return "Email atau kata sandi salah.";
+    if (code === "auth/email-already-in-use") return "Email ini sudah terdaftar. Coba masuk.";
+    if (code === "auth/weak-password") return "Kata sandi minimal 6 karakter.";
+    if (code === "auth/missing-password") return "Kata sandi wajib diisi.";
+    if (code === "auth/too-many-requests") return "Terlalu banyak percobaan. Coba lagi nanti.";
+    if (code === "auth/network-request-failed" || code === "cloud-offline") return "Tidak ada koneksi internet.";
+    if (code === "auth/user-disabled") return "Akun ini dinonaktifkan.";
+    if (code === "auth/requires-recent-login") return "Masuk ulang untuk melanjutkan.";
+    if (code === "auth-no-user" || code === "cloud-no-user") return "Silakan masuk ke akun terlebih dahulu.";
+    if (code === "cloud-unconfigured") return "Cadangan online belum diaktifkan.";
+    if (code === "cloud-pending") return "Pilih dulu data akun yang ingin dipakai.";
+    if (code === "cloud-unsynced") return "Data belum tersinkron. Sambungkan internet lalu coba lagi.";
+    if (code === "lock-crypto-unavailable") return "Browser ini belum mendukung kunci PIN.";
+    return "Terjadi masalah. Coba lagi.";
+  }
+
+  function syncTimeLabel(iso) {
+    if (!iso) return "";
+    var date = new Date(iso);
+    if (isNaN(date.getTime())) return "";
+    var time = pad2(date.getHours()) + ":" + pad2(date.getMinutes());
+    if (isoDate(date) === isoDate(new Date())) return "hari ini " + time;
+    return formatDateShort(isoDate(date)) + " " + time;
+  }
+
+  function cloudStatusText(status) {
+    if (!status.configured) return "Cadangan online belum diaktifkan";
+    if (!status.ready) return "Menyiapkan akun...";
+    if (status.phase === "starting") return "Menghubungkan...";
+    if (status.phase === "signed-out") return "Belum masuk akun";
+    if (status.phase === "unverified") return "Email belum diverifikasi";
+    if (status.phase === "loading") return "Memuat data akun...";
+    if (status.phase === "syncing") return "Menyinkronkan...";
+    if (status.phase === "pending") return "Menunggu sinkronisasi";
+    if (status.phase === "offline") return "Offline · data aman di HP";
+    if (status.phase === "choice" || status.phase === "conflict") return "Perlu memilih data";
+    if (status.phase === "error") return status.error || "Perlu diperiksa";
+    if (status.phase === "synced") return status.lastSyncedAt ? "Tersinkron " + syncTimeLabel(status.lastSyncedAt) : "Tersinkron";
+    return "Siap";
+  }
+
+  function cloudTone(status) {
+    if (status.phase === "error") return "bad";
+    if (status.phase === "choice" || status.phase === "conflict" || status.phase === "pending") return "warn";
+    if (status.phase === "offline" || status.phase === "syncing" || status.phase === "loading" || status.phase === "starting") return "muted";
+    if (status.phase === "synced") return "good";
+    return "muted";
+  }
+
+  function accountSettingsRows() {
+    if (!cloudState.configured) {
+      return settingsDisabled("Cadangan online", "Belum diaktifkan · gunakan cadangan file");
+    }
+    if (!cloudState.user) {
+      if (!cloudState.ready || cloudState.phase === "starting" || cloudState.phase === "loading") {
+        return settingsInfo("Akun cloud", "Menyiapkan akun...", "Memuat");
+      }
+      if (cloudState.phase === "error") {
+        return settingsDisabled("Akun cloud", cloudState.error || "Tidak tersedia saat ini");
+      }
+      return settingsButton("account-open", "Masuk atau buat akun", "Cadangkan transaksi dan buka di HP lain");
+    }
+    var email = cloudState.user.email;
+    if (!cloudState.user.emailVerified) {
+      return settingsButton("account-open", "Verifikasi email", email + " · cek kotak masuk");
+    }
+    var rows = settingsButton("account-open", "Akun cloud", email + " · " + cloudStatusText(cloudState));
+    if (cloudState.pending) {
+      rows += settingsButton("cloud-pending", "Pilih data akun", cloudState.pending.type === "conflict" ? "Data berubah di dua tempat" : "Tentukan data yang dipakai");
+    } else {
+      rows += settingsButton("cloud-sync", "Sinkronkan sekarang", cloudStatusText(cloudState));
+    }
+    return rows;
+  }
+
+  function autoLockDescription(value) {
+    return value === 0 ? "saat aplikasi ditutup" : "setelah " + CatatLock.autoLockLabel(value).toLowerCase();
+  }
+
+  function lockSettingsSubtitle() {
+    if (!CatatLock.isEnabled()) return "PIN 6 angka untuk membuka Catat";
+    return "Aktif · kunci " + autoLockDescription(CatatLock.getAutoLock());
+  }
+
+  function accountSummaryHTML() {
+    if (!cloudState.user) return "";
+    var email = cloudState.user.email || "";
+    var initial = email ? email.charAt(0).toUpperCase() : "C";
+    return '<div class="account-summary"><span class="account-avatar">' + escapeHtml(initial) + '</span><div class="account-summary-copy">' +
+      "<strong>" + escapeHtml(email) + "</strong><span>" + (cloudState.user.emailVerified ? "Email terverifikasi" : "Email belum diverifikasi") + "</span></div></div>";
+  }
+
+  function accountStatusHTML() {
+    var detail = cloudState.lastSyncedAt
+      ? '<div class="account-detail"><span>Terakhir sinkron</span><strong>' + escapeHtml(syncTimeLabel(cloudState.lastSyncedAt)) + "</strong></div>"
+      : "";
+    return accountSummaryHTML() +
+      '<div class="account-status-line"><span class="status-dot is-' + cloudTone(cloudState) + '"></span><span>' + escapeHtml(cloudStatusText(cloudState)) + "</span></div>" +
+      detail;
+  }
+
+  function openLoginSheet(mode) {
+    var recovery = mode === "recover";
+    var note = recovery
+      ? "Data di HP ini sudah dikosongkan. Masuk dengan akun yang sama untuk mengambil transaksi dari cloud."
+      : "Transaksi akan otomatis dicadangkan ke akun cloud dan bisa dibuka di HP lain.";
+    openSheet(recovery ? "Masuk untuk memulihkan" : "Masuk ke akun",
+      '<p class="sheet-note">' + note + "</p>" +
+      '<div class="field-group"><label for="authEmail">Email</label><input class="field-input" id="authEmail" type="email" inputmode="email" autocomplete="email" autocapitalize="none" spellcheck="false" placeholder="nama@email.com"></div>' +
+      '<div class="field-group"><label for="authPassword">Kata sandi</label><input class="field-input" id="authPassword" type="password" autocomplete="current-password" placeholder="Kata sandi"></div>' +
+      '<p class="form-message" id="authMessage" role="alert"></p>' +
+      '<div class="sheet-actions"><button type="button" class="btn-primary small" data-action="auth-login">Masuk</button></div>' +
+      '<div class="auth-links"><button type="button" data-action="auth-open-signup">Buat akun baru</button><button type="button" data-action="auth-open-reset">Lupa kata sandi</button></div>'
+    );
+  }
+
+  function openSignupSheet() {
+    openSheet("Buat akun",
+      '<p class="sheet-note">Akun dipakai untuk mencadangkan transaksi. Kami akan mengirim email verifikasi.</p>' +
+      '<div class="field-group"><label for="authEmail">Email</label><input class="field-input" id="authEmail" type="email" inputmode="email" autocomplete="email" autocapitalize="none" spellcheck="false" placeholder="nama@email.com"></div>' +
+      '<div class="field-group"><label for="authPassword">Kata sandi</label><input class="field-input" id="authPassword" type="password" autocomplete="new-password" placeholder="Minimal 6 karakter"></div>' +
+      '<div class="field-group"><label for="authPasswordConfirm">Ulangi kata sandi</label><input class="field-input" id="authPasswordConfirm" type="password" autocomplete="new-password" placeholder="Ulangi kata sandi"></div>' +
+      '<p class="form-message" id="authMessage" role="alert"></p>' +
+      '<div class="sheet-actions"><button type="button" class="btn-primary small" data-action="auth-signup">Buat akun</button></div>' +
+      '<div class="auth-links"><button type="button" data-action="auth-open-login">Sudah punya akun? Masuk</button></div>'
+    );
+  }
+
+  function openResetSheet() {
+    var email = inputValue("authEmail");
+    openSheet("Lupa kata sandi",
+      '<p class="sheet-note">Masukkan email akun. Kami akan mengirim tautan untuk membuat kata sandi baru.</p>' +
+      '<div class="field-group"><label for="authEmail">Email</label><input class="field-input" id="authEmail" type="email" inputmode="email" autocomplete="email" autocapitalize="none" spellcheck="false" value="' + escapeHtml(email) + '" placeholder="nama@email.com"></div>' +
+      '<p class="form-message" id="authMessage" role="alert"></p>' +
+      '<div class="sheet-actions"><button type="button" class="btn-primary small" data-action="auth-reset-send">Kirim tautan</button></div>'
+    );
+  }
+
+  function openUnverifiedSheet() {
+    if (!cloudState.user) {
+      openLoginSheet();
+      return;
+    }
+    openSheet("Verifikasi email",
+      accountSummaryHTML() +
+      '<div class="notice is-warning"><strong>Email belum diverifikasi</strong><span>Buka tautan verifikasi dari email kami. Data belum bisa disinkronkan sebelum email diverifikasi.</span></div>' +
+      '<div class="sheet-actions">' +
+      '<button type="button" class="btn-primary small" data-action="auth-resend">Kirim ulang email</button>' +
+      '<button type="button" class="btn-soft" data-action="auth-check-verification">Cek sudah terverifikasi</button>' +
+      '<button type="button" class="btn-soft" data-action="auth-signout">Keluar akun</button>' +
+      "</div>"
+    );
+  }
+
+  function openAccountStatusSheet() {
+    if (!cloudState.user) {
+      openLoginSheet();
+      return;
+    }
+    if (!cloudState.user.emailVerified) {
+      openUnverifiedSheet();
+      return;
+    }
+    var syncButton = cloudState.pending
+      ? '<button type="button" class="btn-primary small" data-action="cloud-pending">Pilih data akun</button>'
+      : '<button type="button" class="btn-primary small" data-action="cloud-sync">Sinkronkan sekarang</button>';
+    openSheet("Akun cloud",
+      accountStatusHTML() +
+      '<p class="sheet-note">Data di HP ini dan akun cloud disamakan otomatis saat ada internet.</p>' +
+      '<div class="sheet-actions">' + syncButton +
+      '<button type="button" class="btn-soft" data-action="account-signout">Keluar akun</button></div>'
+    );
+  }
+
+  function openAccountSheet() {
+    if (!cloudState.configured) {
+      openSheet("Cadangan online",
+        '<p class="sheet-note">Cadangan online belum diaktifkan. Sementara ini gunakan <strong>Cadangkan data</strong> di Pengaturan untuk menyimpan salinan transaksi ke file.</p>'
+      );
+      return;
+    }
+    if (!cloudState.user) {
+      openLoginSheet();
+      return;
+    }
+    if (!cloudState.user.emailVerified) {
+      openUnverifiedSheet();
+      return;
+    }
+    openAccountStatusSheet();
+  }
+
+  function choiceStats(summary) {
+    if (!summary) return "Tidak ada transaksi";
+    if (!summary.transactions) return "Tidak ada transaksi";
+    return summary.transactions + " transaksi · pengeluaran " + formatRp(summary.expense);
+  }
+
+  function cloudChoiceHTML(action, icon, title, description, recommended) {
+    return '<button type="button" class="cloud-choice' + (recommended ? " is-recommended" : "") + '" data-action="' + action + '">' +
+      '<span class="cloud-choice-icon">' + iconSvg(icon) + "</span>" +
+      '<span class="cloud-choice-copy"><span class="cloud-choice-title">' + escapeHtml(title) +
+      (recommended ? '<span class="choice-badge">Disarankan</span>' : "") +
+      '</span><span class="cloud-choice-sub">' + escapeHtml(description) + "</span></span>" +
+      iconSvg("chevron", "settings-chevron") + "</button>";
+  }
+
+  function openCloudPendingSheet() {
+    var pending = cloudState.pending;
+    if (!pending) return;
+    var conflict = pending.type === "conflict";
+    var cloud = pending.cloud;
+    var hasCloud = cloud && cloud.exists;
+    var html = '<p class="sheet-note">' + (conflict
+      ? "Data berubah di HP ini dan di perangkat lain. Pilih satu sumber; perubahan pada sumber lain akan hilang."
+      : "Akun ini sudah punya data cloud. Pilih data yang dipakai di HP ini.") + "</p>";
+    if (hasCloud) {
+      var cloudDescription = choiceStats(cloud) + (cloud.updatedAt ? " · " + syncTimeLabel(cloud.updatedAt) : "");
+      html += cloudChoiceHTML("cloud-choose-cloud", "download", "Data cloud", cloudDescription, pending.recommended === "cloud");
+    }
+    html += cloudChoiceHTML("cloud-choose-local", "upload", "Data di HP ini", choiceStats(pending.local), pending.recommended === "local");
+    if (!hasCloud) {
+      html += cloudChoiceHTML("cloud-choose-empty", "wallet", "Mulai kosong", "Mulai tanpa transaksi", false);
+    }
+    html += '<p class="sheet-warning">' + (hasCloud
+      ? "Memilih data HP akan menggantikan data cloud. Data yang tidak dipilih akan hilang."
+      : "Data yang tidak dipilih tidak akan dipakai di HP ini.") + "</p>";
+    html += '<div class="sheet-actions"><button type="button" class="btn-soft" data-close-sheet>Nanti saja</button></div>';
+    openSheet(conflict ? "Data berubah di dua tempat" : "Pilih data akun", html);
+  }
+
+  function maybeOpenCloudPending() {
+    if (!cloudState.pending) return false;
+    if (CatatLock.isLocked()) return false;
+    if (els.sheetWrap.classList.contains("is-open") || els.dialogWrap.classList.contains("is-open")) return false;
+    openCloudPendingSheet();
+    return true;
+  }
+
+  function handleCloudStatus(next) {
+    var previous = cloudState;
+    cloudState = next;
+    if (ui.screen === "pengaturan" && !els.sheetWrap.classList.contains("is-open") && !CatatLock.isLocked()) {
+      renderPengaturan();
+    }
+    if ((next.phase === "choice" || next.phase === "conflict") && previous.phase !== next.phase) {
+      window.setTimeout(maybeOpenCloudPending, 120);
+    }
+    if (next.phase === "error" && previous.phase !== "error" && next.error && !CatatLock.isLocked()) {
+      toast(next.error);
+    }
+    if (next.phase === "unverified" && previous.phase !== "unverified" && !CatatLock.isLocked()) {
+      toast("Cek email untuk verifikasi akun.");
+    }
+  }
+
+  function handleCloudApplied() {
+    state = Store.getState();
+    applyTheme();
+    renderScreen(ui.screen);
+  }
+
+  async function loginAccount() {
+    var email = inputValue("authEmail").trim();
+    var password = inputValue("authPassword");
+    if (!email) {
+      setFormMessage("authMessage", "Email wajib diisi.");
+      return;
+    }
+    if (!password) {
+      setFormMessage("authMessage", "Kata sandi wajib diisi.");
+      return;
+    }
+    setFormMessage("authMessage", "");
+    setFormBusy("auth-login", true, "Masuk...");
+    try {
+      var credential = await CatatCloud.signIn(email, password);
+      closeSheet();
+      if (credential.user && !credential.user.emailVerified) {
+        toast("Cek email untuk verifikasi akun.");
+        window.setTimeout(openUnverifiedSheet, 500);
+      } else {
+        toast("Masuk. Memuat data akun...");
+        window.setTimeout(maybeOpenCloudPending, 800);
+      }
+    } catch (error) {
+      setFormMessage("authMessage", authErrorMessage(error));
+    } finally {
+      setFormBusy("auth-login", false);
+    }
+  }
+
+  async function signupAccount() {
+    var email = inputValue("authEmail").trim();
+    var password = inputValue("authPassword");
+    var confirm = inputValue("authPasswordConfirm");
+    if (!email) {
+      setFormMessage("authMessage", "Email wajib diisi.");
+      return;
+    }
+    if (password.length < 6) {
+      setFormMessage("authMessage", "Kata sandi minimal 6 karakter.");
+      return;
+    }
+    if (password !== confirm) {
+      setFormMessage("authMessage", "Ulangi kata sandi dengan benar.");
+      return;
+    }
+    setFormMessage("authMessage", "");
+    setFormBusy("auth-signup", true, "Membuat akun...");
+    try {
+      await CatatCloud.signUp(email, password);
+      closeSheet();
+      toast("Akun dibuat. Cek email untuk verifikasi.");
+      window.setTimeout(openUnverifiedSheet, 600);
+    } catch (error) {
+      setFormMessage("authMessage", authErrorMessage(error));
+    } finally {
+      setFormBusy("auth-signup", false);
+    }
+  }
+
+  async function sendPasswordReset() {
+    var email = inputValue("authEmail").trim();
+    if (!email) {
+      setFormMessage("authMessage", "Email wajib diisi.");
+      return;
+    }
+    setFormMessage("authMessage", "");
+    setFormBusy("auth-reset-send", true, "Mengirim...");
+    try {
+      await CatatCloud.sendReset(email);
+      closeSheet();
+      toast("Tautan reset sudah dikirim ke email.");
+    } catch (error) {
+      setFormMessage("authMessage", authErrorMessage(error));
+    } finally {
+      setFormBusy("auth-reset-send", false);
+    }
+  }
+
+  async function resendEmailVerification() {
+    setFormBusy("auth-resend", true, "Mengirim...");
+    try {
+      await CatatCloud.resendVerification();
+      toast("Email verifikasi sudah dikirim.");
+    } catch (error) {
+      toast(authErrorMessage(error));
+    } finally {
+      setFormBusy("auth-resend", false);
+    }
+  }
+
+  async function checkEmailVerification() {
+    setFormBusy("auth-check-verification", true, "Memeriksa...");
+    try {
+      var verified = await CatatCloud.refreshVerification();
+      if (verified) {
+        closeSheet();
+        toast("Email terverifikasi.");
+        window.setTimeout(maybeOpenCloudPending, 800);
+      } else {
+        toast("Email belum terverifikasi. Buka tautan dari email terlebih dahulu.");
+      }
+    } catch (error) {
+      toast(authErrorMessage(error));
+    } finally {
+      setFormBusy("auth-check-verification", false);
+    }
+  }
+
+  async function syncCloudAccount() {
+    if (!cloudState.user || !cloudState.user.emailVerified) {
+      openAccountSheet();
+      return;
+    }
+    if (cloudState.pending) {
+      openCloudPendingSheet();
+      return;
+    }
+    toast("Menyinkronkan data...");
+    var result = await CatatCloud.syncNow();
+    cloudState = result;
+    if (result.pending) {
+      openCloudPendingSheet();
+      return;
+    }
+    if (result.phase === "synced") {
+      closeSheet();
+      toast("Data sudah tersinkron.");
+    } else if (result.phase === "offline") {
+      toast("Tidak ada internet. Data tetap aman di HP.");
+    } else if (result.phase === "error") {
+      toast(result.error || "Data belum tersinkron.");
+    } else {
+      toast(cloudStatusText(result));
+    }
+    if (ui.screen === "pengaturan" && !els.sheetWrap.classList.contains("is-open")) renderPengaturan();
+  }
+
+  async function resolveCloudChoice(choice) {
+    var action = "cloud-choose-" + choice;
+    setFormBusy(action, true, "Memproses...");
+    try {
+      var result = await CatatCloud.resolveChoice(choice);
+      cloudState = result;
+      state = Store.getState();
+      applyTheme();
+      closeSheet();
+      showScreen(ui.screen);
+      if (result.pending) {
+        openCloudPendingSheet();
+      } else if (choice === "cloud") {
+        toast("Data cloud dimuat.");
+      } else if (choice === "empty") {
+        toast("Akun dimulai dengan data kosong.");
+      } else if (result.phase === "offline") {
+        toast("Data HP dipakai. Sinkron saat online.");
+      } else if (result.phase === "error") {
+        toast(result.error || "Data belum tersinkron.");
+      } else {
+        toast("Data HP dipakai dan dicadangkan.");
+      }
+    } catch (error) {
+      setFormMessage("cloudMessage", authErrorMessage(error));
+      setFormBusy(action, false);
+    }
+  }
+
+  async function signOutAccount(clearLocal) {
+    try {
+      await CatatCloud.signOut();
+      if (clearLocal) {
+        state = Store.resetToEmpty();
+        ui.selectedMonth = currentMonthKey();
+        applyTheme();
+        closeSheet();
+        showScreen("beranda");
+        toast("Keluar dari akun. Data lokal sudah dibersihkan.");
+      } else {
+        closeSheet();
+        renderScreen("pengaturan");
+        toast("Keluar dari akun.");
+      }
+    } catch (error) {
+      toast(authErrorMessage(error));
+      if (error.code === "cloud-pending") window.setTimeout(maybeOpenCloudPending, 500);
+    }
+  }
+
+  function askSignOut() {
+    if (!cloudState.user) {
+      openAccountSheet();
+      return;
+    }
+    if (cloudState.pending) {
+      openCloudPendingSheet();
+      return;
+    }
+    var verified = cloudState.user.emailVerified;
+    openDialog("Keluar dari akun?",
+      verified
+        ? "Pastikan data sudah tersinkron. Setelah keluar, salinan di HP ini dibersihkan; data di akun cloud tetap aman."
+        : "Kamu akan keluar dari akun yang belum diverifikasi. Data di HP ini tetap disimpan.",
+      "Keluar",
+      function () { signOutAccount(verified); });
+  }
+
+  function pinInputHTML(id, label, autocomplete) {
+    return '<div class="field-group"><label for="' + id + '">' + label + '</label>' +
+      '<input class="field-input pin-input" id="' + id + '" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="6" autocomplete="' + (autocomplete || "off") + '" placeholder="6 angka"></div>';
+  }
+
+  function openLockSetupSheet() {
+    openSheet("Kunci aplikasi",
+      '<p class="sheet-note">Buat PIN 6 angka. PIN hanya tersimpan di HP ini dan tidak dikirim ke akun cloud.</p>' +
+      pinInputHTML("pinNew", "PIN baru", "new-password") +
+      pinInputHTML("pinConfirm", "Ulangi PIN", "new-password") +
+      '<p class="form-message" id="lockMessage" role="alert"></p>' +
+      '<div class="sheet-actions"><button type="button" class="btn-primary small" data-action="lock-enable">Aktifkan PIN</button></div>' +
+      '<p class="sheet-note">Jika lupa PIN, data lokal mungkin perlu dihapus sebelum bisa dibuka lagi.</p>'
+    );
+  }
+
+  function autoLockButtonHTML(value) {
+    var active = CatatLock.getAutoLock() === value;
+    return '<button type="button" class="seg-btn' + (active ? " is-active" : "") + '" data-action="lock-auto" data-lock-auto="' + value + '" aria-pressed="' + (active ? "true" : "false") + '">' + CatatLock.autoLockLabel(value) + "</button>";
+  }
+
+  function openLockSettingsSheet() {
+    openSheet("Kunci aplikasi",
+      '<div class="lock-status-card"><span class="lock-status-icon">' + iconSvg("lock") + "</span><div><strong>PIN aktif</strong><span>Kunci " + autoLockDescription(CatatLock.getAutoLock()) + "</span></div></div>" +
+      '<div class="field-label">Kunci otomatis</div>' +
+      '<div class="segmented lock-auto-tabs">' + [0, 60000, 300000, 900000].map(autoLockButtonHTML).join("") + "</div>" +
+      '<p class="sheet-note">“Langsung” mengunci saat aplikasi ditinggalkan. PIN tetap diminta setelah waktu yang dipilih.</p>' +
+      '<div class="sheet-actions">' +
+      '<button type="button" class="btn-soft" data-action="lock-change-open">Ubah PIN</button>' +
+      '<button type="button" class="btn-soft" data-action="lock-now">Kunci sekarang</button>' +
+      '<button type="button" class="btn-danger" data-action="lock-disable-open">Matikan kunci</button>' +
+      "</div>"
+    );
+  }
+
+  function openChangePinSheet() {
+    openSheet("Ubah PIN",
+      pinInputHTML("pinCurrent", "PIN saat ini", "current-password") +
+      pinInputHTML("pinNew", "PIN baru", "new-password") +
+      pinInputHTML("pinConfirm", "Ulangi PIN baru", "new-password") +
+      '<p class="form-message" id="lockMessage" role="alert"></p>' +
+      '<div class="sheet-actions"><button type="button" class="btn-primary small" data-action="lock-change-save">Simpan PIN baru</button></div>'
+    );
+  }
+
+  function openDisableLockSheet() {
+    openSheet("Matikan kunci",
+      '<p class="sheet-note">Masukkan PIN saat ini untuk mematikan kunci aplikasi.</p>' +
+      pinInputHTML("pinCurrent", "PIN saat ini", "current-password") +
+      '<p class="form-message" id="lockMessage" role="alert"></p>' +
+      '<div class="sheet-actions"><button type="button" class="btn-danger" data-action="lock-disable-save">Matikan kunci</button></div>'
+    );
+  }
+
+  async function enableLock() {
+    var pin = inputValue("pinNew");
+    var confirm = inputValue("pinConfirm");
+    if (!/^\d{6}$/.test(pin)) {
+      setFormMessage("lockMessage", "PIN harus 6 angka.");
+      return;
+    }
+    if (pin !== confirm) {
+      setFormMessage("lockMessage", "Ulangi PIN dengan benar.");
+      return;
+    }
+    setFormMessage("lockMessage", "");
+    setFormBusy("lock-enable", true, "Menyimpan...");
+    try {
+      await CatatLock.setPin(pin);
+      closeSheet();
+      renderPengaturan();
+      toast("Kunci aplikasi aktif.");
+    } catch (error) {
+      setFormMessage("lockMessage", authErrorMessage(error));
+    } finally {
+      setFormBusy("lock-enable", false);
+    }
+  }
+
+  async function changeLockPin() {
+    var current = inputValue("pinCurrent");
+    var next = inputValue("pinNew");
+    var confirm = inputValue("pinConfirm");
+    if (!/^\d{6}$/.test(current)) {
+      setFormMessage("lockMessage", "PIN saat ini harus 6 angka.");
+      return;
+    }
+    if (!/^\d{6}$/.test(next)) {
+      setFormMessage("lockMessage", "PIN baru harus 6 angka.");
+      return;
+    }
+    if (next !== confirm) {
+      setFormMessage("lockMessage", "Ulangi PIN baru dengan benar.");
+      return;
+    }
+    setFormMessage("lockMessage", "");
+    setFormBusy("lock-change-save", true, "Menyimpan...");
+    try {
+      await CatatLock.changePin(current, next);
+      closeSheet();
+      renderPengaturan();
+      toast("PIN berhasil diubah.");
+    } catch (error) {
+      setFormMessage("lockMessage", error.message === "pin-wrong" ? "PIN saat ini salah." : authErrorMessage(error));
+    } finally {
+      setFormBusy("lock-change-save", false);
+    }
+  }
+
+  async function disableLock() {
+    var pin = inputValue("pinCurrent");
+    if (!/^\d{6}$/.test(pin)) {
+      setFormMessage("lockMessage", "Masukkan PIN 6 angka.");
+      return;
+    }
+    setFormMessage("lockMessage", "");
+    setFormBusy("lock-disable-save", true, "Mematikan...");
+    try {
+      await CatatLock.disable(pin);
+      closeSheet();
+      renderPengaturan();
+      toast("Kunci aplikasi dimatikan.");
+    } catch (error) {
+      setFormMessage("lockMessage", error.message === "pin-wrong" ? "PIN saat ini salah." : authErrorMessage(error));
+    } finally {
+      setFormBusy("lock-disable-save", false);
+    }
+  }
+
+  function openForgotPinSheet() {
+    var configured = CatatCloud.isConfigured();
+    var note = configured
+      ? "Jika transaksi sudah pernah tersinkron ke akun cloud, aktifkan internet, hapus data di HP ini, lalu masuk dengan email yang sama untuk mengambilnya kembali."
+      : "Cadangan online belum aktif. Data yang belum dicadangkan ke file tidak bisa dikembalikan.";
+    openSheet("Lupa PIN?",
+      '<div class="notice is-warning"><strong>PIN tidak bisa dibaca ulang</strong><span>Demi keamanan, PIN tidak disimpan dalam bentuk asli.</span></div>' +
+      '<p class="sheet-note">' + note + "</p>" +
+      '<div class="sheet-actions">' +
+      '<button type="button" class="btn-danger" data-action="lock-forgot-reset">Hapus data HP ini</button>' +
+      '<button type="button" class="btn-soft" data-close-sheet>Batal</button>' +
+      "</div>"
+    );
+  }
+
+  function askForgotPinReset() {
+    var configured = CatatCloud.isConfigured();
+    openDialog("Hapus data di HP ini?",
+      "Semua transaksi, kategori, dan PIN di HP ini akan dihapus." +
+      (configured ? " Data cloud tidak dihapus; masuk lagi dengan email untuk mengambilnya." : " Data yang belum dicadangkan ke file tidak bisa dikembalikan."),
+      "Hapus & buka",
+      performForgotPinReset);
+  }
+
+  async function performForgotPinReset() {
+    if (CatatCloud.isConfigured()) {
+      try {
+        await CatatCloud.discardSession();
+      } catch (error) {
+        if (CatatCloud.getStatus().user) return;
+      }
+    }
+    closeSheet();
+    state = Store.resetToEmpty();
+    ui.selectedMonth = currentMonthKey();
+    CatatLock.removePin();
+    document.documentElement.classList.remove("is-app-locked");
+    applyTheme();
+    showScreen("beranda");
+    if (CatatCloud.isConfigured()) {
+      toast("PIN dihapus. Masuk untuk mengambil data cloud.");
+      openLoginSheet("recover");
+    } else {
+      toast("PIN dan data lokal dihapus.");
+    }
+  }
+
   function renderPengaturan() {
     var budget = state.settings.monthlyBudget > 0
       ? '<span class="settings-value">' + formatRp(state.settings.monthlyBudget) + "</span>"
       : '<span class="settings-value">Belum diatur</span>';
 
-    var html = settingsSection("Budget",
+    var html = settingsSection("Akun dan cadangan", accountSettingsRows());
+
+    html += settingsSection("Keamanan",
+      settingsButton("lock-settings", "Kunci aplikasi", lockSettingsSubtitle(),
+        '<span class="settings-value">' + (CatatLock.isEnabled() ? "Aktif" : "Nonaktif") + "</span>")
+    );
+
+    html += settingsSection("Budget",
       settingsButton("budget-month", "Budget bulanan", "Total semua kategori", budget) +
       settingsButton("budget-categories", "Budget per kategori", "Atur batas untuk tiap kategori") +
       settingsSwitch("toggle-warning", "Peringatan hampir habis", "Beri tahu saat sisa budget tinggal 20%", state.settings.warningEnabled)
@@ -736,7 +1417,6 @@
     );
 
     html += settingsSection("Segera hadir",
-      settingsDisabled("Kunci aplikasi", "PIN atau sidik jari") +
       settingsDisabled("Pengingat harian", "Ingatkan mencatat setiap hari")
     );
 
@@ -892,6 +1572,7 @@
       existing.date = ui.date;
       existing.payment = ui.payment;
       existing.note = note;
+      existing.isSample = false;
       Store.save();
     } else {
       state.transactions.push({
@@ -902,7 +1583,8 @@
         date: ui.date,
         time: ui.time || nowTime(),
         payment: ui.payment,
-        note: note
+        note: note,
+        isSample: false
       });
       Store.save();
     }
@@ -1736,6 +2418,10 @@
   }
 
   function askSeedData() {
+    if (cloudState.user && cloudState.user.emailVerified) {
+      toast("Keluar dari akun cloud dulu sebelum memuat data contoh.");
+      return;
+    }
     openDialog("Muat ulang data contoh?", "Semua transaksi, kategori, dan pengaturan saat ini akan diganti dengan data contoh.", "Muat ulang", function () {
       state = Store.resetToSeed();
       ui.selectedMonth = currentMonthKey();
@@ -1834,6 +2520,86 @@
       case "toggle-dark":
         toggleDark();
         break;
+      case "account-open":
+        openAccountSheet();
+        break;
+      case "account-signout":
+      case "auth-signout":
+        askSignOut();
+        break;
+      case "auth-open-login":
+        openLoginSheet();
+        break;
+      case "auth-open-signup":
+        openSignupSheet();
+        break;
+      case "auth-open-reset":
+        openResetSheet();
+        break;
+      case "auth-login":
+        loginAccount();
+        break;
+      case "auth-signup":
+        signupAccount();
+        break;
+      case "auth-reset-send":
+        sendPasswordReset();
+        break;
+      case "auth-resend":
+        resendEmailVerification();
+        break;
+      case "auth-check-verification":
+        checkEmailVerification();
+        break;
+      case "cloud-sync":
+        syncCloudAccount();
+        break;
+      case "cloud-pending":
+        openCloudPendingSheet();
+        break;
+      case "cloud-choose-cloud":
+        resolveCloudChoice("cloud");
+        break;
+      case "cloud-choose-local":
+        resolveCloudChoice("local");
+        break;
+      case "cloud-choose-empty":
+        resolveCloudChoice("empty");
+        break;
+      case "lock-settings":
+        if (CatatLock.isEnabled()) openLockSettingsSheet();
+        else openLockSetupSheet();
+        break;
+      case "lock-enable":
+        enableLock();
+        break;
+      case "lock-auto":
+        var autoLockValue = Number(trigger.getAttribute("data-lock-auto"));
+        if (CatatLock.setAutoLock(autoLockValue)) {
+          openLockSettingsSheet();
+          renderPengaturan();
+          toast("Kunci otomatis diperbarui.");
+        }
+        break;
+      case "lock-change-open":
+        openChangePinSheet();
+        break;
+      case "lock-now":
+        closeSheet();
+        CatatLock.lock();
+        break;
+      case "lock-disable-open":
+        openDisableLockSheet();
+        break;
+      case "lock-change-save":
+        changeLockPin();
+        break;
+      case "lock-disable-save":
+        disableLock();
+        break;
+      case "lock-forgot-reset":
+        askForgotPinReset();
+        break;
       case "clear-data":
         askClearData();
         break;
@@ -1859,6 +2625,13 @@
   }
 
   function handleKeydown(event) {
+    if (CatatLock.isLocked()) {
+      if (event.key === "Escape") {
+        if (els.dialogWrap.classList.contains("is-open")) closeDialog();
+        else if (els.sheetWrap.classList.contains("is-open")) closeSheet();
+      }
+      return;
+    }
     if (event.key === "Escape") {
       if (els.dialogWrap.classList.contains("is-open")) {
         closeDialog();
@@ -1972,9 +2745,31 @@
     });
   }
 
+  function handleUnlocked() {
+    document.documentElement.classList.remove("is-app-locked");
+    applyTheme();
+    renderScreen(ui.screen);
+    maybeOpenCloudPending();
+  }
+
+  function handleAppLocked() {
+    if (els.sheetWrap.classList.contains("is-open")) closeSheet();
+    if (els.dialogWrap.classList.contains("is-open")) closeDialog();
+    els.toast.classList.remove("is-visible");
+  }
+
   function boot() {
     applyTheme();
     bindEvents();
+    CatatLock.init({
+      onUnlocked: handleUnlocked,
+      onForgot: openForgotPinSheet
+    });
+    window.addEventListener("catat:locked", handleAppLocked);
+    window.addEventListener("catat:cloud-applied", handleCloudApplied);
+    if (CatatLock.shouldLockOnBoot()) CatatLock.show();
+    else document.documentElement.classList.remove("is-app-locked");
+
     var hash = (window.location.hash || "").replace(/^#\/?/, "");
     if (hash === "tambah") {
       ui.screen = "beranda";
@@ -1983,6 +2778,10 @@
     } else {
       showScreen(SCREENS.indexOf(hash) >= 0 ? hash : "beranda");
     }
+
+    CatatCloud.subscribe(handleCloudStatus);
+    CatatCloud.init();
+
     if ("serviceWorker" in navigator && /^https?:$/.test(window.location.protocol)) {
       navigator.serviceWorker.register("./sw.js").catch(function () {
         /* offline support akan aktif saat dihosting */

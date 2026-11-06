@@ -15,6 +15,7 @@
   <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png">
   <link rel="preload" href="./assets/fonts/plus-jakarta-sans-400.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="./assets/fonts/plus-jakarta-sans-800.woff2" as="font" type="font/woff2" crossorigin>
+  <script src="./js/boot-lock.js"></script>
   <link rel="stylesheet" href="./styles.css">
 </head>
 <body>
@@ -197,8 +198,43 @@
 
   <section class="print-report" id="printReport" aria-hidden="true"></section>
 
+  <section class="lock-screen" id="lockScreen" aria-hidden="true" aria-label="Kunci aplikasi">
+    <div class="lock-inner">
+      <div class="lock-brand">
+        <span class="lock-mark">C</span>
+        <div><strong>Catat</strong><span>Catatan keuangan pribadi</span></div>
+      </div>
+      <div class="lock-copy">
+        <h1>Masukkan PIN</h1>
+        <p id="lockSubtitle">Buka Catat untuk melanjutkan</p>
+      </div>
+      <div class="lock-dots" id="lockDots" aria-live="polite" aria-label="PIN enam angka"></div>
+      <p class="lock-error" id="lockError" role="alert"></p>
+      <div class="lock-keypad" id="lockKeypad" aria-label="Keypad PIN">
+        <button type="button" data-lock-key="1">1</button>
+        <button type="button" data-lock-key="2">2</button>
+        <button type="button" data-lock-key="3">3</button>
+        <button type="button" data-lock-key="4">4</button>
+        <button type="button" data-lock-key="5">5</button>
+        <button type="button" data-lock-key="6">6</button>
+        <button type="button" data-lock-key="7">7</button>
+        <button type="button" data-lock-key="8">8</button>
+        <button type="button" data-lock-key="9">9</button>
+        <span class="lock-key-empty" aria-hidden="true"></span>
+        <button type="button" data-lock-key="0">0</button>
+        <button type="button" class="lock-key-back" data-lock-key="back" aria-label="Hapus angka">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6H9.5L4 12l5.5 6H20a1 1 0 0 0 1-1V7a1 1 0 0 0-1-1Z"/><path d="m12 9.5 5 5M17 9.5l-5 5"/></svg>
+        </button>
+      </div>
+      <button type="button" class="lock-forgot" id="lockForgot">Lupa PIN?</button>
+    </div>
+  </section>
+
+  <script src="./js/firebase-config.js"></script>
   <script src="./js/store.js"></script>
   <script src="./js/charts.js"></script>
+  <script src="./js/lock.js"></script>
+  <script src="./js/cloud.js"></script>
   <script src="./js/app.js"></script>
 </body>
 </html>
