@@ -30,12 +30,16 @@
     { id: "Kartu", icon: "card" }
   ];
 
-  var THEMES = ["kuning", "mono", "malam"];
+  var THEMES = ["default", "dark", "kuning", "mono", "malam"];
+
+  function isDarkTheme(theme) {
+    return theme === "dark" || theme === "malam";
+  }
 
   var DEFAULT_SETTINGS = {
     monthlyBudget: 3500000,
     warningEnabled: true,
-    theme: "kuning",
+    theme: "default",
     darkMode: false,
     categoryBudgets: {}
   };
@@ -118,9 +122,9 @@
     if (THEMES.indexOf(storedSettings.theme) >= 0) {
       settings.theme = storedSettings.theme;
     } else {
-      settings.theme = settings.darkMode === true ? "malam" : "kuning";
+      settings.theme = settings.darkMode === true ? "dark" : "default";
     }
-    settings.darkMode = settings.theme === "malam";
+    settings.darkMode = isDarkTheme(settings.theme);
     if (!settings.categoryBudgets || typeof settings.categoryBudgets !== "object") {
       settings.categoryBudgets = {};
     }
@@ -377,10 +381,10 @@
   }
 
   function resetToEmpty() {
-    var theme = state && state.settings ? state.settings.theme : "kuning";
+    var theme = state && state.settings ? state.settings.theme : "default";
     var settings = clone(DEFAULT_SETTINGS);
-    settings.theme = THEMES.indexOf(theme) >= 0 ? theme : "kuning";
-    settings.darkMode = settings.theme === "malam";
+    settings.theme = THEMES.indexOf(theme) >= 0 ? theme : "default";
+    settings.darkMode = isDarkTheme(settings.theme);
     state = normalize({
       version: VERSION,
       categories: clone(EXPENSE_CATEGORIES),

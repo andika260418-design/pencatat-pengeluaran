@@ -305,20 +305,22 @@
     });
   }
 
-  var THEME_IDS = ["kuning", "mono", "malam"];
+  var THEME_IDS = ["default", "dark", "kuning", "mono", "malam"];
   var THEME_META = {
+    default: { label: "Default", description: "Tampilan awal Catat", color: "#F4F6F3" },
+    dark: { label: "Gelap", description: "Nyaman di malam hari", color: "#0C1512" },
     kuning: { label: "Kuning", description: "Ceria dan kontras", color: "#FFD62E" },
     mono: { label: "Monokrom", description: "Bersih tanpa warna", color: "#F3EFE4" },
     malam: { label: "Malam", description: "Ungu gelap bertabur bintang", color: "#140A30" }
   };
 
   function currentTheme() {
-    var key = state && state.settings ? state.settings.theme : "kuning";
-    return THEME_META[key] ? key : "kuning";
+    var key = state && state.settings ? state.settings.theme : "default";
+    return THEME_META[key] ? key : "default";
   }
 
   function themeInfo(key) {
-    return THEME_META[key] || THEME_META.kuning;
+    return THEME_META[key] || THEME_META.default;
   }
 
   function themeColor() {
@@ -783,7 +785,7 @@
 
   function chooseTheme(key) {
     if (!THEME_META[key]) return;
-    Store.saveSettings({ theme: key, darkMode: key === "malam" });
+    Store.saveSettings({ theme: key, darkMode: key === "dark" || key === "malam" });
     state = Store.getState();
     applyTheme();
     renderPengaturan();

@@ -34,7 +34,8 @@
   font-display: swap;
 }
 
-:root {
+:root,
+[data-theme="default"] {
   color-scheme: light;
   --bg: #f4f6f3;
   --surface: #ffffff;
@@ -3845,9 +3846,9 @@ html[data-theme="malam"] {
   height: 54px;
   flex: none;
   overflow: hidden;
-  border: 1px solid rgba(0, 0, 0, 0.18);
+  border: 1px solid rgba(0, 0, 0, 0.12);
   border-radius: 8px;
-  background: #ffffff;
+  background: #f4f6f3;
 }
 
 .theme-preview .tp-top,
@@ -3864,7 +3865,7 @@ html[data-theme="malam"] {
   width: 24px;
   height: 3px;
   border-radius: 2px;
-  background: #101010;
+  background: #10211b;
 }
 
 .theme-preview .tp-hero {
@@ -3872,8 +3873,8 @@ html[data-theme="malam"] {
   right: 6px;
   left: 6px;
   height: 16px;
-  border-radius: 3px;
-  background: #6d2be0;
+  border-radius: 5px;
+  background: #0c6e5f;
 }
 
 .theme-preview .tp-row {
@@ -3881,8 +3882,8 @@ html[data-theme="malam"] {
   right: 7px;
   left: 7px;
   height: 6px;
-  border: 1px solid #101010;
-  border-radius: 1px;
+  border: 1px solid #d6dfd9;
+  border-radius: 2px;
   background: #ffffff;
 }
 
@@ -3897,12 +3898,31 @@ html[data-theme="malam"] {
   bottom: 0;
   left: 0;
   height: 8px;
-  border-top: 1px solid #101010;
+  border-top: 1px solid #d6dfd9;
   background: #ffffff;
 }
 
 .theme-preview[data-preview="kuning"] {
+  border-color: rgba(0, 0, 0, 0.18);
   background: #ffd62e;
+}
+
+.theme-preview[data-preview="kuning"] .tp-top {
+  background: #101010;
+}
+
+.theme-preview[data-preview="kuning"] .tp-hero {
+  border-radius: 3px;
+  background: #6d2be0;
+}
+
+.theme-preview[data-preview="kuning"] .tp-row {
+  border-color: #101010;
+  border-radius: 1px;
+}
+
+.theme-preview[data-preview="kuning"] .tp-nav {
+  border-color: #101010;
 }
 
 .theme-preview[data-preview="mono"] {
@@ -3910,7 +3930,37 @@ html[data-theme="malam"] {
 }
 
 .theme-preview[data-preview="mono"] .tp-hero {
+  border-radius: 3px;
   background: #111111;
+}
+
+.theme-preview[data-preview="mono"] .tp-row,
+.theme-preview[data-preview="mono"] .tp-nav {
+  border-color: #101010;
+}
+
+.theme-preview[data-preview="dark"] {
+  border-color: rgba(255, 255, 255, 0.16);
+  background: #0c1512;
+}
+
+.theme-preview[data-preview="dark"] .tp-top {
+  background: rgba(237, 245, 241, 0.65);
+}
+
+.theme-preview[data-preview="dark"] .tp-hero {
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: linear-gradient(135deg, #0f7162, #084a41);
+}
+
+.theme-preview[data-preview="dark"] .tp-row {
+  border-color: rgba(255, 255, 255, 0.14);
+  background: #17251f;
+}
+
+.theme-preview[data-preview="dark"] .tp-nav {
+  border-color: rgba(255, 255, 255, 0.14);
+  background: #131f1a;
 }
 
 .theme-preview[data-preview="malam"] {
@@ -3947,9 +3997,9 @@ html[data-theme="malam"] {
   height: 28px;
   flex: none;
   overflow: hidden;
-  border: 1px solid var(--line-soft);
+  border: 1px solid #cbd6d0;
   border-radius: 6px;
-  background: #ffd62e;
+  background: #f4f6f3;
 }
 
 .theme-chip::before,
@@ -3965,15 +4015,28 @@ html[data-theme="malam"] {
   top: 5px;
   height: 11px;
   border-radius: 2px;
-  background: #6d2be0;
+  background: #0c6e5f;
 }
 
 .theme-chip::after {
   top: 19px;
   height: 5px;
-  border: 1px solid #101010;
+  border: 1px solid #d6dfd9;
   border-radius: 1px;
   background: #ffffff;
+}
+
+.theme-chip[data-preview="kuning"] {
+  border-color: #101010;
+  background: #ffd62e;
+}
+
+.theme-chip[data-preview="kuning"]::before {
+  background: #6d2be0;
+}
+
+.theme-chip[data-preview="kuning"]::after {
+  border-color: #101010;
 }
 
 .theme-chip[data-preview="mono"] {
@@ -3983,6 +4046,24 @@ html[data-theme="malam"] {
 
 .theme-chip[data-preview="mono"]::before {
   background: #111111;
+}
+
+.theme-chip[data-preview="mono"]::after {
+  border-color: #101010;
+}
+
+.theme-chip[data-preview="dark"] {
+  border-color: rgba(255, 255, 255, 0.2);
+  background: #0c1512;
+}
+
+.theme-chip[data-preview="dark"]::before {
+  background: #31cba7;
+}
+
+.theme-chip[data-preview="dark"]::after {
+  border-color: rgba(255, 255, 255, 0.14);
+  background: #17251f;
 }
 
 .theme-chip[data-preview="malam"] {
