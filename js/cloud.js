@@ -110,6 +110,7 @@
     return {
       uid: user.uid,
       email: user.email || "",
+      displayName: user.displayName || "",
       emailVerified: user.emailVerified === true
     };
   }
@@ -746,6 +747,23 @@
     return true;
   }
 
+  async function setDisplayName(name) {
+    await ensureReady();
+    if (!auth.currentUser) {
+      var missing = new Error("auth-no-user");
+      missing.code = "auth-no-user";
+      throw missing;
+    }
+    var clean = String(name || "").replace(/\s+/g, " ").trim().slice(0, 40);
+    await auth.currentUser.updateProfile({ displayName: clean || null });
+    if (currentUser && currentUser.uid === auth.currentUser.uid) {
+      currentUser.displayName = clean || null;
+      status.user = userSummary(currentUser);
+      notify();
+    }
+    return clean;
+  }
+
   async function signOut() {
     await ensureReady();
     if (!auth.currentUser) {
@@ -823,6 +841,7 @@
     subscribe: subscribe,
     signIn: signIn,
     signUp: signUp,
+    setDisplayName: setDisplayName,
     signOut: signOut,
     sendReset: sendReset,
     resendVerification: resendVerification,

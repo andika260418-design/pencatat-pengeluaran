@@ -16,6 +16,8 @@
     navItems: document.querySelectorAll(".nav-item"),
     monthTrigger: byId("monthTrigger"),
     monthLabel: byId("monthLabel"),
+    homeGreeting: byId("homeGreeting"),
+    homeGreetingName: byId("homeGreetingName"),
     berandaBody: byId("berandaBody"),
     searchInput: byId("searchInput"),
     riwayatBody: byId("riwayatBody"),
@@ -416,7 +418,22 @@
     return '<div class="cat-stack">' + stack + "</div>" + '<div class="cat-legend">' + legend + "</div>";
   }
 
+  function renderHomeGreeting() {
+    if (!els.homeGreeting || !els.homeGreetingName) return;
+    var name = cloudState.user && cloudState.user.displayName
+      ? String(cloudState.user.displayName).trim()
+      : "";
+    if (!name) {
+      els.homeGreeting.hidden = true;
+      els.homeGreetingName.textContent = "";
+      return;
+    }
+    els.homeGreetingName.textContent = name;
+    els.homeGreeting.hidden = false;
+  }
+
   function renderBeranda() {
+    renderHomeGreeting();
     var transactions = monthTransactions(ui.selectedMonth);
     var total = sumAmount(transactions, "expense");
     var today = isoDate(new Date());
@@ -793,6 +810,13 @@
     return "muted";
   }
 
+  function accountNameRow() {
+    var displayName = (cloudState.user && cloudState.user.displayName || "").trim();
+    return settingsButton("account-name", "Nama pribadi", displayName
+      ? "Sapaan di Beranda: " + displayName
+      : "Atur nama untuk sapaan di Beranda");
+  }
+
   function accountSettingsRows() {
     if (!cloudState.configured) {
       return settingsDisabled("Cadangan online", "Belum diaktifkan · gunakan cadangan file");
@@ -808,9 +832,11 @@
     }
     var email = cloudState.user.email;
     if (!cloudState.user.emailVerified) {
-      return settingsButton("account-open", "Verifikasi email", email + " · cek kotak masuk");
+      return settingsButton("account-open", "Verifikasi email", email + " · cek kotak masuk") +
+        accountNameRow();
     }
-    var rows = settingsButton("account-open", "Akun cloud", email + " · " + cloudStatusText(cloudState));
+    var rows = settingsButton("account-open", "Akun cloud", email + " · " + cloudStatusText(cloudState)) +
+      accountNameRow();
     if (cloudState.pending) {
       rows += settingsButton("cloud-pending", "Pilih data akun", cloudState.pending.type === "conflict" ? "Data berubah di dua tempat" : "Tentukan data yang dipakai");
     } else {
@@ -936,6 +962,37 @@
     openAccountStatusSheet();
   }
 
+  function openNameSheet() {
+    if (!cloudState.user) {
+      openLoginSheet();
+      return;
+    }
+    var current = (cloudState.user.displayName || "").trim();
+    openSheet("Nama pribadi",
+      '<p class="sheet-note">Nama ini dipakai untuk sapaan di Beranda dan tersimpan di akun cloud.</p>' +
+      '<div class="field-group"><label for="accountName">Nama</label><input class="field-input" id="accountName" type="text" maxlength="40" autocomplete="name" placeholder="Contoh: Handika" value="' + escapeHtml(current) + '"></div>' +
+      '<p class="form-message" id="accountNameMessage" role="alert"></p>' +
+      '<div class="sheet-actions"><button type="button" class="btn-primary small" data-action="account-name-save">Simpan nama</button></div>' +
+      '<p class="sheet-note">Kosongkan nama untuk menyembunyikan sapaan.</p>'
+    );
+  }
+
+  async function saveAccountName() {
+    var name = inputValue("accountName").replace(/\s+/g, " ").trim().slice(0, 40);
+    setFormBusy("account-name-save", true, "Menyimpan...");
+    try {
+      var saved = await CatatCloud.setDisplayName(name);
+      closeSheet();
+      renderHomeGreeting();
+      if (ui.screen === "pengaturan") renderPengaturan();
+      toast(saved ? "Nama pribadi disimpan." : "Nama pribadi dihapus.");
+    } catch (error) {
+      setFormMessage("accountNameMessage", authErrorMessage(error));
+    } finally {
+      setFormBusy("account-name-save", false);
+    }
+  }
+
   function choiceStats(summary) {
     if (!summary) return "Tidak ada transaksi";
     if (!summary.transactions) return "Tidak ada transaksi";
@@ -959,7 +1016,9 @@
     var hasCloud = cloud && cloud.exists;
     var html = '<p class="sheet-note">' + (conflict
       ? "Data berubah di HP ini dan di perangkat lain. Pilih satu sumber; perubahan pada sumber lain akan hilang."
-      : "Akun ini sudah punya data cloud. Pilih data yang dipakai di HP ini.") + "</p>";
+      : hasCloud
+        ? "Akun ini sudah punya data cloud. Pilih data yang dipakai di HP ini."
+        : "Belum ada data cloud di akun ini. Pilih data yang dipakai di HP ini.") + "</p>";
     if (hasCloud) {
       var cloudDescription = choiceStats(cloud) + (cloud.updatedAt ? " · " + syncTimeLabel(cloud.updatedAt) : "");
       html += cloudChoiceHTML("cloud-choose-cloud", "download", "Data cloud", cloudDescription, pending.recommended === "cloud");
@@ -986,6 +1045,7 @@
   function handleCloudStatus(next) {
     var previous = cloudState;
     cloudState = next;
+    renderHomeGreeting();
     if (ui.screen === "pengaturan" && !els.sheetWrap.classList.contains("is-open") && !CatatLock.isLocked()) {
       renderPengaturan();
     }
@@ -2522,6 +2582,12 @@
         break;
       case "account-open":
         openAccountSheet();
+        break;
+      case "account-name":
+        openNameSheet();
+        break;
+      case "account-name-save":
+        saveAccountName();
         break;
       case "account-signout":
       case "auth-signout":

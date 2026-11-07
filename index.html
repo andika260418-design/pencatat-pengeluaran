@@ -24,10 +24,16 @@
       <section class="screen is-active" id="screen-beranda" data-screen="beranda" aria-label="Beranda">
         <div class="screen-pad">
           <header class="page-header">
-            <button class="month-trigger" id="monthTrigger" type="button">
-              <span id="monthLabel">Bulan ini</span>
-              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m7 10 5 5 5-5"/></svg>
-            </button>
+            <div class="page-header-row">
+              <button class="month-trigger" id="monthTrigger" type="button">
+                <span id="monthLabel">Bulan ini</span>
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m7 10 5 5 5-5"/></svg>
+              </button>
+              <span class="home-greeting" id="homeGreeting" hidden>
+                <span>Selamat datang,</span>
+                <strong id="homeGreetingName"></strong>
+              </span>
+            </div>
             <h1>Ringkasan</h1>
           </header>
           <div id="berandaBody" class="stack"></div>
