@@ -1,11 +1,24 @@
 <!DOCTYPE html>
-<html lang="id" data-theme="light">
+<html lang="id" data-theme="kuning">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Pencatat Pengeluaran</title>
   <meta name="description" content="Pencatat pengeluaran pribadi yang sederhana, cepat, dan bisa dipakai offline.">
-  <meta name="theme-color" content="#F4F6F3" id="themeColorMeta">
+  <meta name="theme-color" content="#FFD62E" id="themeColorMeta">
+  <script>
+    (function () {
+      try {
+        var raw = localStorage.getItem("catat.state.v1");
+        var settings = raw ? (JSON.parse(raw) || {}).settings || {} : {};
+        var colors = { kuning: "#FFD62E", mono: "#F3EFE4", malam: "#140A30" };
+        var theme = colors[settings.theme] ? settings.theme : (settings.darkMode === true ? "malam" : "kuning");
+        document.documentElement.setAttribute("data-theme", theme);
+        var meta = document.getElementById("themeColorMeta");
+        if (meta) meta.setAttribute("content", colors[theme]);
+      } catch (error) {}
+    })();
+  </script>
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">

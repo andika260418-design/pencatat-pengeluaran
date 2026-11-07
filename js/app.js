@@ -305,12 +305,28 @@
     });
   }
 
+  var THEME_IDS = ["kuning", "mono", "malam"];
+  var THEME_META = {
+    kuning: { label: "Kuning", description: "Ceria dan kontras", color: "#FFD62E" },
+    mono: { label: "Monokrom", description: "Bersih tanpa warna", color: "#F3EFE4" },
+    malam: { label: "Malam", description: "Ungu gelap bertabur bintang", color: "#140A30" }
+  };
+
+  function currentTheme() {
+    var key = state && state.settings ? state.settings.theme : "kuning";
+    return THEME_META[key] ? key : "kuning";
+  }
+
+  function themeInfo(key) {
+    return THEME_META[key] || THEME_META.kuning;
+  }
+
   function themeColor() {
-    return state.settings.darkMode ? "#0C1512" : "#F4F6F3";
+    return themeInfo(currentTheme()).color;
   }
 
   function applyTheme() {
-    document.documentElement.setAttribute("data-theme", state.settings.darkMode ? "dark" : "light");
+    document.documentElement.setAttribute("data-theme", currentTheme());
     if (els.themeColorMeta) els.themeColorMeta.setAttribute("content", themeColor());
   }
 
@@ -736,6 +752,43 @@
     return '<div class="settings-row is-info-row"><span class="settings-copy"><span class="settings-title">' +
       escapeHtml(title) + '</span><span class="settings-sub">' + escapeHtml(subtitle) + "</span></span>" +
       (badge ? '<span class="badge-later">' + escapeHtml(badge) + "</span>" : "") + "</div>";
+  }
+
+  function themeChipHTML(key) {
+    return '<span class="theme-chip" data-preview="' + escapeHtml(key) + '" aria-hidden="true"></span>';
+  }
+
+  function themePreviewHTML(key) {
+    return '<span class="theme-preview" data-preview="' + escapeHtml(key) + '" aria-hidden="true">' +
+      '<span class="tp-top"></span><span class="tp-hero"></span>' +
+      '<span class="tp-row"></span><span class="tp-row tp-row-short"></span>' +
+      '<span class="tp-nav"></span></span>';
+  }
+
+  function themeOptionHTML(key) {
+    var active = currentTheme() === key;
+    var info = themeInfo(key);
+    return '<button type="button" class="theme-option' + (active ? " is-active" : "") + '" data-action="theme-choose" data-theme="' + escapeHtml(key) + '" aria-pressed="' + (active ? "true" : "false") + '">' +
+      themePreviewHTML(key) +
+      '<span class="theme-option-copy"><strong>' + escapeHtml(info.label) + '</strong><small>' + escapeHtml(info.description) + '</small></span>' +
+      '<span class="theme-check">' + (active ? iconSvg("check") : "") + '</span></button>';
+  }
+
+  function openThemeSheet() {
+    openSheet("Tema",
+      '<p class="sheet-note">Pilih tampilan yang paling nyaman. Perubahan langsung diterapkan.</p>' +
+      '<div class="theme-options">' + THEME_IDS.map(themeOptionHTML).join("") + "</div>"
+    );
+  }
+
+  function chooseTheme(key) {
+    if (!THEME_META[key]) return;
+    Store.saveSettings({ theme: key, darkMode: key === "malam" });
+    state = Store.getState();
+    applyTheme();
+    renderPengaturan();
+    openThemeSheet();
+    toast("Tema " + themeInfo(key).label + " aktif.");
   }
 
   function inputValue(id) {
@@ -1470,10 +1523,14 @@
       settingsButton("manage-categories", "Kelola kategori", state.categories.length + " kategori · ubah nama, ikon, dan warna")
     );
 
-    html += settingsSection("Data dan tampilan",
+    var theme = themeInfo(currentTheme());
+    html += settingsSection("Tampilan",
+      settingsButton("theme-settings", "Tema", theme.label + " · " + theme.description, themeChipHTML(currentTheme()))
+    );
+
+    html += settingsSection("Data",
       settingsButton("backup-data", "Cadangkan data", "Simpan salinan semua transaksi ke file") +
-      settingsButton("restore-data", "Pulihkan data", "Ambil dari file cadangan") +
-      settingsSwitch("toggle-dark", "Mode gelap", "Tampilan lebih nyaman di malam hari", state.settings.darkMode)
+      settingsButton("restore-data", "Pulihkan data", "Ambil dari file cadangan")
     );
 
     html += settingsSection("Segera hadir",
@@ -2458,13 +2515,6 @@
     toast(state.settings.warningEnabled ? "Peringatan budget aktif." : "Peringatan budget nonaktif.");
   }
 
-  function toggleDark() {
-    Store.saveSettings({ darkMode: !state.settings.darkMode });
-    applyTheme();
-    renderPengaturan();
-    toast(state.settings.darkMode ? "Mode gelap aktif." : "Mode gelap nonaktif.");
-  }
-
   function askClearData() {
     if (!state.transactions.length) {
       toast("Belum ada transaksi untuk dihapus.");
@@ -2577,8 +2627,11 @@
       case "toggle-warning":
         toggleWarning();
         break;
-      case "toggle-dark":
-        toggleDark();
+      case "theme-settings":
+        openThemeSheet();
+        break;
+      case "theme-choose":
+        chooseTheme(trigger.getAttribute("data-theme"));
         break;
       case "account-open":
         openAccountSheet();
