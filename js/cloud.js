@@ -757,8 +757,8 @@
     var clean = String(name || "").replace(/\s+/g, " ").trim().slice(0, 40);
     await auth.currentUser.updateProfile({ displayName: clean || null });
     if (currentUser && currentUser.uid === auth.currentUser.uid) {
-      currentUser.displayName = clean || null;
-      status.user = userSummary(currentUser);
+      status.user = userSummary(auth.currentUser);
+      status.user.displayName = clean;
       notify();
     }
     return clean;
