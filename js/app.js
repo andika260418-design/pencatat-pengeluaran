@@ -59,6 +59,7 @@
   var ui = {
     screen: "beranda",
     selectedMonth: monthKey(new Date()),
+    summarySlide: 0,
     period: "month",
     search: "",
     addOpen: false,
@@ -81,6 +82,7 @@
   var toastTimer = null;
   var dialogAction = null;
   var printPreviousTitle = null;
+  var summaryDrag = null;
   var cloudState = CatatCloud.getStatus();
 
   var ICONS = {
@@ -116,7 +118,9 @@
     printer: '<path d="M7 8V4h10v4"/><rect x="4" y="8" width="16" height="8" rx="2"/><path d="M7 13h10v7H7z"/><path d="M17 11h.01"/>',
     upload: '<path d="M12 16V5M7.5 9.5 12 5l4.5 4.5M5 20h14"/>',
     lock: '<rect x="5" y="10" width="14" height="10" rx="2.5"/><path d="M8.5 10V7.5a3.5 3.5 0 0 1 7 0V10"/>',
-    bell: '<path d="M18 9.5a6 6 0 0 0-12 0c0 5-2 6-2 6h16s-2-1-2-6ZM10 19h4"/>'
+    bell: '<path d="M18 9.5a6 6 0 0 0-12 0c0 5-2 6-2 6h16s-2-1-2-6ZM10 19h4"/>',
+    eye: '<path d="M2.8 12S6.5 5.5 12 5.5 21.2 12 21.2 12 17.5 18.5 12 18.5 2.8 12 2.8 12Z"/><circle cx="12" cy="12" r="3.1"/>',
+    eyeOff: '<path d="M3 12s3.7-6.5 9-6.5 9 6.5 9 6.5-3.7 6.5-9 6.5S3 12 3 12Z"/><circle cx="12" cy="12" r="3.1"/><path d="m4 4 16 16"/>'
   };
 
   var ICON_NAMES = ["food", "coffee", "bus", "car", "bag", "bolt", "play", "heart", "dots", "wallet", "banknote", "gift", "briefcase", "trend", "phone", "card", "home", "book", "plane", "pet"];
@@ -454,6 +458,8 @@
     renderHomeGreeting();
     var transactions = monthTransactions(ui.selectedMonth);
     var total = sumAmount(transactions, "expense");
+    var income = sumAmount(transactions, "income");
+    var balance = income - total;
     var today = isoDate(new Date());
     var todayTotal = state.transactions.reduce(function (sum, tx) {
       return tx.type === "expense" && tx.date === today ? sum + tx.amount : sum;
@@ -467,22 +473,48 @@
 
     els.monthLabel.textContent = friendlyMonth(ui.selectedMonth);
 
-    var html = '<section class="summary-card">' +
+    var summarySlide = ui.summarySlide === 1 ? 1 : 0;
+    var balanceHidden = state.settings.balanceHidden === true;
+    var expenseSlide = '<div class="summary-slide" aria-hidden="' + (summarySlide === 1 ? "true" : "false") + '">' +
       '<div class="summary-label">Total pengeluaran</div>' +
       '<div class="summary-amount">' + formatRp(total) + "</div>";
 
     if (budget > 0) {
-      html += '<div class="budget-track"><span style="width:' + Math.max(0, Math.min(100, percent)).toFixed(1) + '%"></span></div>' +
+      expenseSlide += '<div class="budget-track"><span style="width:' + Math.max(0, Math.min(100, percent)).toFixed(1) + '%"></span></div>' +
         '<div class="budget-info"><span>Terpakai ' + Math.round(percent) + "% dari " + formatRp(budget) + "</span>" +
         '<span class="budget-left' + (remaining < 0 ? " is-over" : "") + '">' +
         (remaining < 0 ? "Lewat " + formatRp(-remaining) : "Sisa " + formatRp(remaining)) +
         "</span></div>";
     } else {
-      html += '<div class="budget-track"><span style="width:0%"></span></div>' +
+      expenseSlide += '<div class="budget-track"><span style="width:0%"></span></div>' +
         '<div class="budget-info"><span>Budget bulanan belum diatur</span></div>';
     }
 
-    html += '<div class="summary-divider"></div>' +
+    expenseSlide += "</div>";
+
+    var balanceSlide = '<div class="summary-slide" aria-hidden="' + (summarySlide === 0 ? "true" : "false") + '">' +
+      '<div class="summary-label-row"><span class="summary-label">Sisa saldo</span>' +
+      '<button type="button" class="summary-eye" data-action="toggle-balance" tabindex="' + (summarySlide === 1 ? "0" : "-1") + '" aria-label="' +
+      (balanceHidden ? "Tampilkan sisa saldo" : "Sembunyikan sisa saldo") + '" aria-pressed="' + (balanceHidden ? "true" : "false") + '">' +
+      iconSvg(balanceHidden ? "eyeOff" : "eye") + "</button></div>" +
+      '<div class="summary-amount' + (!balanceHidden && balance < 0 ? " is-negative" : "") + '">' +
+      (balanceHidden ? "Rp \u2022\u2022\u2022\u2022\u2022\u2022" : (balance < 0 ? "\u2212" : "") + formatRp(balance)) + "</div>" +
+      '<div class="balance-breakdown">' +
+      '<div class="balance-stat"><span>Pemasukan</span><strong>+' + formatRp(income) + "</strong></div>" +
+      '<div class="balance-stat"><span>Pengeluaran</span><strong>\u2212' + formatRp(total) + "</strong></div>" +
+      "</div></div>";
+
+    var html = '<section class="summary-card">' +
+      '<div class="summary-carousel' + (summarySlide === 1 ? " is-balance" : "") + '">' +
+      '<div class="summary-viewport">' +
+      '<div class="summary-track" style="transform:translateX(' + (summarySlide === 1 ? "-50%" : "0%") + ')">' +
+      expenseSlide + balanceSlide +
+      "</div></div>" +
+      '<div class="summary-dots" role="group" aria-label="Pilih ringkasan">' +
+      '<button type="button" class="summary-dot' + (summarySlide === 0 ? " is-active" : "") + '" data-action="summary-slide" data-slide="0" aria-label="Tampilkan total pengeluaran" aria-pressed="' + (summarySlide === 0 ? "true" : "false") + '"></button>' +
+      '<button type="button" class="summary-dot' + (summarySlide === 1 ? " is-active" : "") + '" data-action="summary-slide" data-slide="1" aria-label="Tampilkan sisa saldo" aria-pressed="' + (summarySlide === 1 ? "true" : "false") + '"></button>' +
+      "</div></div>" +
+      '<div class="summary-divider"></div>' +
       '<div class="today-row"><span>' + (isCurrent ? "Hari ini" : "Transaksi") + "</span><b>" +
       (isCurrent ? formatRp(todayTotal) : transactions.length + " catatan") +
       "</b></div></section>";
@@ -510,6 +542,89 @@
     }
 
     els.berandaBody.innerHTML = html;
+  }
+
+  function setSummarySlide(index) {
+    ui.summarySlide = index === 1 ? 1 : 0;
+    var carousel = els.berandaBody.querySelector(".summary-carousel");
+    if (!carousel) return;
+    var track = carousel.querySelector(".summary-track");
+    carousel.classList.toggle("is-balance", ui.summarySlide === 1);
+    if (track) {
+      track.style.transform = ui.summarySlide === 1 ? "translateX(-50%)" : "translateX(0)";
+    }
+    carousel.querySelectorAll(".summary-slide").forEach(function (slide, slideIndex) {
+      slide.setAttribute("aria-hidden", slideIndex === ui.summarySlide ? "false" : "true");
+    });
+    carousel.querySelectorAll(".summary-dot").forEach(function (dot) {
+      var active = Number(dot.getAttribute("data-slide")) === ui.summarySlide;
+      dot.classList.toggle("is-active", active);
+      dot.setAttribute("aria-pressed", active ? "true" : "false");
+    });
+    var eye = carousel.querySelector(".summary-eye");
+    if (eye) eye.setAttribute("tabindex", ui.summarySlide === 1 ? "0" : "-1");
+  }
+
+  function toggleBalance() {
+    Store.saveSettings({ balanceHidden: !state.settings.balanceHidden });
+    state = Store.getState();
+    renderBeranda();
+  }
+
+  function startSummaryDrag(event) {
+    if (event.isPrimary === false || (event.pointerType === "mouse" && event.button !== 0)) return;
+    var viewport = event.target.closest(".summary-viewport");
+    if (!viewport) return;
+    var track = viewport.querySelector(".summary-track");
+    var carousel = viewport.closest(".summary-carousel");
+    if (!track || !carousel) return;
+    summaryDrag = {
+      carousel: carousel,
+      track: track,
+      startSlide: ui.summarySlide === 1 ? 1 : 0,
+      startX: event.clientX,
+      startY: event.clientY,
+      dx: 0,
+      active: false,
+      pointerId: event.pointerId,
+      width: viewport.clientWidth
+    };
+  }
+
+  function moveSummaryDrag(event) {
+    if (!summaryDrag || event.pointerId !== summaryDrag.pointerId) return;
+    var drag = summaryDrag;
+    var dx = event.clientX - drag.startX;
+    var dy = event.clientY - drag.startY;
+    if (!drag.active) {
+      if (Math.abs(dx) < 8 || Math.abs(dx) <= Math.abs(dy) * 1.05) return;
+      drag.active = true;
+      drag.carousel.classList.add("is-dragging");
+    }
+    drag.dx = dx;
+    var base = drag.startSlide === 1 ? -50 : 0;
+    var shift = dx;
+    if ((drag.startSlide === 0 && dx > 0) || (drag.startSlide === 1 && dx < 0)) {
+      shift = dx * 0.28;
+    }
+    drag.track.style.transform = "translateX(calc(" + base + "% + " + shift.toFixed(1) + "px))";
+  }
+
+  function finishSummaryDrag(event, cancelled) {
+    if (!summaryDrag || (event && event.pointerId !== summaryDrag.pointerId)) return;
+    var drag = summaryDrag;
+    summaryDrag = null;
+    if (!drag.active) return;
+    drag.carousel.classList.remove("is-dragging");
+    if (cancelled) {
+      setSummarySlide(drag.startSlide);
+      return;
+    }
+    var threshold = Math.max(36, Math.min(70, drag.width * 0.14));
+    var target = drag.startSlide;
+    if (drag.dx <= -threshold) target = 1;
+    if (drag.dx >= threshold) target = 0;
+    setSummarySlide(target);
   }
 
   function matchesQuery(tx, query) {
@@ -2555,6 +2670,12 @@
       case "open-history":
         goTab("riwayat");
         break;
+      case "summary-slide":
+        setSummarySlide(Number(trigger.getAttribute("data-slide")) === 1 ? 1 : 0);
+        break;
+      case "toggle-balance":
+        toggleBalance();
+        break;
       case "open-export":
         openExportSheet();
         break;
@@ -2847,6 +2968,18 @@
     els.sheetBody.addEventListener("change", handleExportInput);
     document.addEventListener("input", handleAppInput);
     document.addEventListener("keydown", handleKeydown);
+
+    els.berandaBody.addEventListener("pointerdown", startSummaryDrag);
+    window.addEventListener("pointermove", moveSummaryDrag);
+    window.addEventListener("pointerup", function (event) {
+      finishSummaryDrag(event, false);
+    });
+    window.addEventListener("pointercancel", function (event) {
+      finishSummaryDrag(event, true);
+    });
+    window.addEventListener("blur", function () {
+      finishSummaryDrag(null, true);
+    });
 
     document.addEventListener("click", function (event) {
       var action = event.target.closest("[data-action]");

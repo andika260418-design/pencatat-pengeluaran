@@ -41,6 +41,7 @@
     warningEnabled: true,
     theme: "default",
     darkMode: false,
+    balanceHidden: false,
     categoryBudgets: {}
   };
 
@@ -119,6 +120,7 @@
     var settings = Object.assign({}, DEFAULT_SETTINGS, storedSettings);
     settings.monthlyBudget = Math.max(0, Math.round(Number(settings.monthlyBudget) || 0));
     settings.warningEnabled = settings.warningEnabled !== false;
+    settings.balanceHidden = settings.balanceHidden === true;
     if (THEMES.indexOf(storedSettings.theme) >= 0) {
       settings.theme = storedSettings.theme;
     } else {
